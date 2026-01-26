@@ -16,6 +16,23 @@
         <a class="site-title" href="<?php echo esc_url( home_url( '/' ) ); ?>"><?php bloginfo( 'name' ); ?></a>
       <?php endif; ?>
     </div>
+    <div class="mega-search">
+      <form role="search" method="get" class="search-form" action="<?php echo esc_url( home_url( '/' ) ); ?>">
+        <label class="screen-reader-text" for="aurora-search">Search for:</label>
+        <select name="product_cat" class="search-category">
+          <option value=""><?php esc_html_e( 'All Categories', 'aurora' ); ?></option>
+          <?php
+          $cats = get_terms( [ 'taxonomy' => 'product_cat', 'hide_empty' => true ] );
+          foreach ( $cats as $cat ) {
+            printf( '<option value="%1$s">%2$s</option>', esc_attr( $cat->slug ), esc_html( $cat->name ) );
+          }
+          ?>
+        </select>
+        <input type="search" id="aurora-search" class="search-field" placeholder="<?php esc_attr_e( 'Search products…', 'aurora' ); ?>" value="<?php echo get_search_query(); ?>" name="s" />
+        <input type="hidden" name="post_type" value="product" />
+        <button type="submit" class="search-submit"><?php esc_html_e( 'Search', 'aurora' ); ?></button>
+      </form>
+    </div>
     <div class="header-actions">
       <?php if ( is_user_logged_in() ) : ?>
         <?php if ( current_user_can( 'manage_woocommerce_products' ) || current_user_can( 'manage_options' ) ) : ?>

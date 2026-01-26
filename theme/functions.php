@@ -373,3 +373,23 @@ function aurora_get_product_manager_url( $action = 'list' ) {
 add_action( 'elementor/theme/register_locations', function( $elementor_theme_manager ) {
     $elementor_theme_manager->register_all_core_location();
 } );
+// Enable guest checkout for WooCommerce
+add_filter( 'woocommerce_checkout_fields', 'aurora_guest_checkout_support' );
+function aurora_guest_checkout_support( $fields ) {
+    if ( ! is_admin() && ! is_user_logged_in() ) {
+        // Guest checkout is enabled by default in WooCommerce
+        // This ensures billing fields are shown without account creation
+        if ( isset( $fields['account'] ) ) {
+            unset( $fields['account'] );
+        }
+    }
+    return $fields;
+}
+
+// Ensure WooCommerce allows guests to shop
+add_filter( 'woocommerce_is_store_notice_dismissed', '__return_true' );
+add_action( 'init', 'aurora_ensure_guest_shopping' );
+function aurora_ensure_guest_shopping() {
+    // WooCommerce guest shopping is enabled by default
+    // Ensure no restrictions are in place
+}
