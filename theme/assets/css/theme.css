@@ -268,30 +268,59 @@
 .login-link,
 .register-link,
 .logout-link,
+.avatar-link,
 .cart-link {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    color: white;
-    font-weight: 600;
+    color: #0f172a;
+    font-weight: 700;
     padding: 8px 14px;
-    border-radius: 6px;
+    border-radius: 8px;
     transition: all 0.3s ease;
     text-decoration: none;
     position: relative;
+    background: transparent;
 }
 
 .account-link:hover,
 .login-link:hover,
 .register-link:hover,
 .logout-link:hover,
+.avatar-link:hover,
 .cart-link:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: #eef2ff;
+    color: #0b57d0;
     transform: translateY(-2px);
 }
 
+.avatar-link {
+    padding: 4px;
+}
+
+.avatar-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid #d9e3ff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #f5f7ff;
+}
+
+.avatar-circle img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
 .cart-icon {
-    font-size: 18px;
+    font-size: 20px;
+    line-height: 1;
+    color: #0b57d0;
 }
 
 .aurora-cart-count {
@@ -300,12 +329,19 @@
     justify-content: center;
     min-width: 24px;
     height: 24px;
-    background: #ff6b6b;
+    background: #0b57d0;
     color: white;
     border-radius: 50%;
     font-size: 11px;
     font-weight: 700;
     animation: pulse 2s infinite;
+}
+
+.cart-link {
+    background: #f8f9ff;
+    border: 1px solid #dfe5ff;
+    border-radius: 999px;
+    padding: 8px 14px;
 }
 
 /* Primary Navigation */
@@ -378,41 +414,8 @@
 .primary-nav .menu-item a[href*="order-management"],
 .primary-nav .menu-item a[href*="order_management"],
 .primary-nav .menu-item a[href*="order-manager"],
-.primary-nav .menu-item a[href*="productmanger"],
-.primary-nav .menu-item a[href*="product%20manger"],
-.primary-nav .menu-item a[href*="product%20mangment"],
-.primary-nav .menu-item a[href*="sample-page"] {
-    display: none;
-}
-
-.primary-nav .menu-item a[href*="order%20managment"],
-.primary-nav .menu-item a[href*="ordermangment"],
-.primary-nav .menu-item a[href*="order%20mangment"],
-
-.primary-nav .menu-item:has(> a[href*="login"]),
-.primary-nav .menu-item:has(> a[href*="register"]),
-.primary-nav .menu-item:has(> a[href*="product-manager"]),
-.primary-nav .menu-item:has(> a[href*="product_manager"]),
-.primary-nav .menu-item:has(> a[href*="order-management"]),
-.primary-nav .menu-item:has(> a[href*="order_management"]),
-.primary-nav .menu-item:has(> a[href*="order-manager"]),
-.primary-nav .menu-item:has(> a[href*="productmanger"]),
-.primary-nav .menu-item:has(> a[href*="product%20manger"]),
-.primary-nav .menu-item:has(> a[href*="product%20mangment"]),
-.primary-nav .menu-item:has(> a[href*="sample-page"]) {
-    display: none;
-}
-
-.primary-nav .menu-item:has(> a[href*="order%20managment"]),
-.primary-nav .menu-item:has(> a[href*="ordermangment"]),
-.primary-nav .menu-item:has(> a[href*="order%20mangment"]),
-/* Page Navigation Button Container */
-.page-nav-buttons {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin: 0;
-    padding: 0;
+/* menu visibility handled in PHP walker; no CSS hiding here */
+padding: 0;
 }
 
 .page-nav-btn {
