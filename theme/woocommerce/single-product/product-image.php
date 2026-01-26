@@ -24,7 +24,7 @@ $wrapper_classes   = apply_filters(
       echo wp_kses_post(
         apply_filters(
           'woocommerce_single_product_image_thumbnail_html',
-          wc_get_product_image_caption( $post_thumbnail_id ),
+          wp_get_attachment_image( $post_thumbnail_id, 'woocommerce_thumbnail' ),
           $post_thumbnail_id
         )
       );
@@ -35,7 +35,7 @@ $wrapper_classes   = apply_filters(
       echo wp_kses_post(
         apply_filters(
           'woocommerce_single_product_image_thumbnail_html',
-          wc_get_product_image_caption( $image_id ),
+          wp_get_attachment_image( $image_id, 'woocommerce_thumbnail' ),
           $image_id
         )
       );

@@ -141,11 +141,14 @@ function aurora_admin_product_manager_shortcode() {
         <div class="admin-nav">
             <a href="<?php echo esc_url( add_query_arg( 'action', 'list' ) ); ?>" class="button <?php echo 'list' === $action ? 'active' : ''; ?>"><?php esc_html_e( 'All Products', 'aurora' ); ?></a>
             <a href="<?php echo esc_url( add_query_arg( 'action', 'add' ) ); ?>" class="button button-primary"><?php esc_html_e( '+ Add Product', 'aurora' ); ?></a>
+            <a href="<?php echo esc_url( add_query_arg( 'action', 'bulk-add' ) ); ?>" class="button button-primary"><?php esc_html_e( '+ Bulk Add (Multiple)', 'aurora' ); ?></a>
         </div>
 
         <?php
         if ( 'add' === $action || 'edit' === $action ) {
             aurora_product_form( $product_id );
+        } elseif ( 'bulk-add' === $action ) {
+            aurora_bulk_product_form();
         } else {
             aurora_products_list();
         }
@@ -361,5 +364,290 @@ function aurora_products_list() {
             ?>
         </div>
     <?php endif; ?>
+    <?php
+}
+
+function aurora_bulk_product_form() {
+    $submitted = false;
+    $success_count = 0;
+    $error_message = '';
+
+    if ( $_SERVER['REQUEST_METHOD'] === 'POST' && isset( $_POST['aurora_bulk_product_nonce'] ) ) {
+        if ( ! wp_verify_nonce( $_POST['aurora_bulk_product_nonce'], 'aurora_bulk_product_form' ) ) {
+            $error_message = __( 'Nonce verification failed.', 'aurora' );
+        } else {
+            $submitted = true;
+            
+            // Get all product entries
+            $product_names = isset( $_POST['product_names'] ) ? (array) $_POST['product_names'] : array();
+            $product_prices = isset( $_POST['product_prices'] ) ? (array) $_POST['product_prices'] : array();
+            $product_stocks = isset( $_POST['product_stocks'] ) ? (array) $_POST['product_stocks'] : array();
+            $product_skus = isset( $_POST['product_skus'] ) ? (array) $_POST['product_skus'] : array();
+            $product_descs = isset( $_POST['product_descs'] ) ? (array) $_POST['product_descs'] : array();
+            
+            $products_categories = isset( $_POST['products_categories'] ) ? $_POST['products_categories'] : array();
+
+            require_once( ABSPATH . 'wp-admin/includes/file.php' );
+            require_once( ABSPATH . 'wp-admin/includes/media.php' );
+            require_once( ABSPATH . 'wp-admin/includes/image.php' );
+
+            foreach ( $product_names as $index => $product_name ) {
+                $product_name = sanitize_text_field( $product_name );
+                
+                if ( empty( $product_name ) ) {
+                    continue;
+                }
+
+                $product_price = floatval( isset( $product_prices[ $index ] ) ? $product_prices[ $index ] : 0 );
+                $product_stock = absint( isset( $product_stocks[ $index ] ) ? $product_stocks[ $index ] : 0 );
+                $product_sku = sanitize_text_field( isset( $product_skus[ $index ] ) ? $product_skus[ $index ] : '' );
+                $product_desc = wp_kses_post( isset( $product_descs[ $index ] ) ? $product_descs[ $index ] : '' );
+                $category_ids = isset( $products_categories[ $index ] ) ? array_map( 'absint', (array) $products_categories[ $index ] ) : array();
+
+                if ( $product_price <= 0 ) {
+                    continue;
+                }
+
+                try {
+                    $new_product = new WC_Product_Simple();
+                    $new_product->set_name( $product_name );
+                    $new_product->set_description( $product_desc );
+                    $new_product->set_regular_price( $product_price );
+                    $new_product->set_stock_quantity( $product_stock );
+                    $new_product->set_sku( $product_sku );
+                    $new_product->set_category_ids( $category_ids );
+                    $new_product->set_status( 'publish' );
+                    $product_id = $new_product->save();
+
+                    // Handle image upload for bulk products
+                    if ( ! empty( $_FILES['product_images']['name'][ $index ] ) ) {
+                        $_FILES['product_image'] = [
+                            'name'     => $_FILES['product_images']['name'][ $index ],
+                            'type'     => $_FILES['product_images']['type'][ $index ],
+                            'tmp_name' => $_FILES['product_images']['tmp_name'][ $index ],
+                            'error'    => $_FILES['product_images']['error'][ $index ],
+                            'size'     => $_FILES['product_images']['size'][ $index ],
+                        ];
+
+                        $attachment_id = media_handle_upload( 'product_image', $product_id );
+                        if ( ! is_wp_error( $attachment_id ) ) {
+                            $new_product->set_image_id( $attachment_id );
+                            $new_product->save();
+                        }
+                    }
+
+                    $success_count++;
+                } catch ( Exception $e ) {
+                    continue;
+                }
+            }
+        }
+    }
+
+    ?>
+    <div class="bulk-product-form-container">
+        <h2><?php esc_html_e( 'Bulk Add Products (Like Facebook Marketplace)', 'aurora' ); ?></h2>
+        <p class="description"><?php esc_html_e( 'Add multiple products at once. Fill in the fields below and click "Add All Products". Images are optional.', 'aurora' ); ?></p>
+
+        <?php if ( $error_message ) : ?>
+            <div class="alert alert-danger"><?php echo esc_html( $error_message ); ?></div>
+        <?php endif; ?>
+
+        <?php if ( $submitted && $success_count > 0 ) : ?>
+            <div class="alert alert-success">
+                <?php printf( 
+                    esc_html__( '%d product(s) added successfully! <a href="%s">View All</a>', 'aurora' ), 
+                    $success_count, 
+                    esc_url( add_query_arg( 'action', 'list' ) ) 
+                ); ?>
+            </div>
+        <?php endif; ?>
+
+        <form method="post" id="bulk-product-form" class="bulk-product-form" enctype="multipart/form-data">
+            <?php wp_nonce_field( 'aurora_bulk_product_form', 'aurora_bulk_product_nonce' ); ?>
+
+            <div class="bulk-products-container" id="bulk-products-container">
+                <!-- Product entries will be added here -->
+                <div class="product-entry" data-index="0">
+                    <?php aurora_bulk_product_entry( 0 ); ?>
+                </div>
+                <div class="product-entry" data-index="1">
+                    <?php aurora_bulk_product_entry( 1 ); ?>
+                </div>
+                <div class="product-entry" data-index="2">
+                    <?php aurora_bulk_product_entry( 2 ); ?>
+                </div>
+            </div>
+
+            <div class="bulk-form-actions">
+                <button type="button" class="button" id="add-more-products-btn"><?php esc_html_e( '+ Add More Fields', 'aurora' ); ?></button>
+                <button type="submit" class="button button-primary" id="submit-bulk-products-btn"><?php esc_html_e( 'Add All Products', 'aurora' ); ?></button>
+                <a href="<?php echo esc_url( add_query_arg( 'action', 'list' ) ); ?>" class="button"><?php esc_html_e( 'Cancel', 'aurora' ); ?></a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+    jQuery(function($) {
+        let productCount = 3;
+        
+        // Get categories for selection
+        const categoriesData = <?php echo json_encode( aurora_get_categories_data() ); ?>;
+        
+        // Add more product fields
+        $('#add-more-products-btn').on('click', function() {
+            const newEntry = `
+                <div class="product-entry" data-index="${productCount}">
+                    ${aurora_get_product_entry_html(productCount, categoriesData)}
+                </div>
+            `;
+            $('#bulk-products-container').append(newEntry);
+            productCount++;
+        });
+
+        // Remove product entry
+        $(document).on('click', '.remove-product-btn', function() {
+            $(this).closest('.product-entry').fadeOut(300, function() {
+                $(this).remove();
+            });
+        });
+    });
+
+    function aurora_get_product_entry_html(index, categories) {
+        let html = `
+            <div class="product-entry-header">
+                <h3>Product #${index + 1}</h3>
+                <button type="button" class="remove-product-btn">✕ Remove</button>
+            </div>
+            <div class="form-group">
+                <label>Product Name *</label>
+                <input type="text" name="product_names[]" class="form-control" required />
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Price *</label>
+                    <input type="number" name="product_prices[]" class="form-control" step="0.01" required />
+                </div>
+                <div class="form-group">
+                    <label>Stock Quantity *</label>
+                    <input type="number" name="product_stocks[]" class="form-control" value="0" required />
+                </div>
+                <div class="form-group">
+                    <label>SKU</label>
+                    <input type="text" name="product_skus[]" class="form-control" />
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Categories</label>
+                <select name="products_categories[${index}][]" class="form-control" multiple size="4">
+                    ${categories}
+                </select>
+                <small>Hold Ctrl (Cmd on Mac) to select multiple</small>
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea name="product_descs[]" class="form-control" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Product Image</label>
+                <input type="file" name="product_images[]" class="form-control" accept="image/*" />
+                <small>JPG, PNG, GIF (optional)</small>
+            </div>
+        `;
+        return html;
+    }
+    </script>
+
+    <?php
+}
+
+function aurora_bulk_product_entry( $index ) {
+    $categories = get_terms( array(
+        'taxonomy'   => 'product_cat',
+        'hide_empty' => false,
+    ) );
+    ?>
+    <div class="product-entry-header">
+        <h3><?php printf( esc_html__( 'Product #%d', 'aurora' ), $index + 1 ); ?></h3>
+        <?php if ( $index > 0 ) : ?>
+            <button type="button" class="remove-product-btn"><?php esc_html_e( '✕ Remove', 'aurora' ); ?></button>
+        <?php endif; ?>
+    </div>
+
+    <div class="form-group">
+        <label><?php esc_html_e( 'Product Name *', 'aurora' ); ?></label>
+        <input type="text" name="product_names[]" class="form-control" required />
+    </div>
+
+    <div class="form-row">
+        <div class="form-group">
+            <label><?php esc_html_e( 'Price *', 'aurora' ); ?></label>
+            <input type="number" name="product_prices[]" class="form-control" step="0.01" required />
+        </div>
+        <div class="form-group">
+            <label><?php esc_html_e( 'Stock Quantity *', 'aurora' ); ?></label>
+            <input type="number" name="product_stocks[]" class="form-control" value="0" required />
+        </div>
+        <div class="form-group">
+            <label><?php esc_html_e( 'SKU', 'aurora' ); ?></label>
+            <input type="text" name="product_skus[]" class="form-control" />
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label><?php esc_html_e( 'Categories', 'aurora' ); ?></label>
+        <select name="products_categories[<?php echo $index; ?>][]" class="form-control" multiple size="4">
+            <?php
+            if ( ! empty( $categories ) && ! is_wp_error( $categories ) ) {
+                foreach ( $categories as $category ) {
+                    $category_color = get_term_meta( $category->term_id, 'aurora_category_color', true );
+                    $category_color = $category_color ? $category_color : '#0b57d0';
+                    printf(
+                        '<option value="%d" data-color="%s">%s</option>',
+                        $category->term_id,
+                        esc_attr( $category_color ),
+                        esc_html( $category->name )
+                    );
+                }
+            }
+            ?>
+        </select>
+        <small><?php esc_html_e( 'Hold Ctrl (Cmd on Mac) to select multiple', 'aurora' ); ?></small>
+    </div>
+
+    <div class="form-group">
+        <label><?php esc_html_e( 'Description', 'aurora' ); ?></label>
+        <textarea name="product_descs[]" class="form-control" rows="3"></textarea>
+    </div>
+
+    <div class="form-group">
+        <label><?php esc_html_e( 'Product Image', 'aurora' ); ?></label>
+        <input type="file" name="product_images[]" class="form-control" accept="image/*" />
+        <small><?php esc_html_e( 'JPG, PNG, GIF (optional)', 'aurora' ); ?></small>
+    </div>
+    <?php
+}
+
+function aurora_get_categories_data() {
+    $categories = get_terms( array(
+        'taxonomy'   => 'product_cat',
+        'hide_empty' => false,
+    ) );
+
+    $html = '';
+    if ( ! empty( $categories ) && ! is_wp_error( $categories ) ) {
+        foreach ( $categories as $category ) {
+            $category_color = get_term_meta( $category->term_id, 'aurora_category_color', true );
+            $category_color = $category_color ? $category_color : '#0b57d0';
+            $html .= sprintf(
+                '<option value="%d" data-color="%s">%s</option>',
+                $category->term_id,
+                esc_attr( $category_color ),
+                esc_html( $category->name )
+            );
+        }
+    }
+    return $html;
+}
     <?php
 }
