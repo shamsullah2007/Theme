@@ -473,3 +473,389 @@ function aurora_ensure_guest_shopping() {
     // WooCommerce guest shopping is enabled by default
     // Ensure no restrictions are in place
 }
+
+// ===== OTP & Profile Management System =====
+
+// Create tables on theme activation
+add_action( 'after_setup_theme', 'aurora_create_otp_tables' );
+function aurora_create_otp_tables() {
+    global $wpdb;
+    
+    $otp_table = $wpdb->prefix . 'aurora_otps';
+    $attempt_table = $wpdb->prefix . 'aurora_otp_attempts';
+    
+    if ( $wpdb->get_var( "SHOW TABLES LIKE '$otp_table'" ) != $otp_table ) {
+        $charset_collate = $wpdb->get_charset_collate();
+        $sql = "CREATE TABLE $otp_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            user_id bigint(20) NOT NULL,
+            otp_code varchar(6) NOT NULL,
+            email varchar(100) NOT NULL,
+            action_type varchar(50) NOT NULL,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            expires_at datetime NOT NULL,
+            is_used tinyint(1) DEFAULT 0,
+            KEY user_id (user_id),
+            KEY email (email)
+        ) $charset_collate;";
+        
+        require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+        dbDelta( $sql );
+    }
+    
+    if ( $wpdb->get_var( "SHOW TABLES LIKE '$attempt_table'" ) != $attempt_table ) {
+        $charset_collate = $wpdb->get_charset_collate();
+        $sql = "CREATE TABLE $attempt_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            user_id bigint(20) NOT NULL,
+            email varchar(100) NOT NULL,
+            attempt_date date NOT NULL,
+            attempt_count int(11) DEFAULT 1,
+            KEY user_id (user_id),
+            KEY email (email),
+            KEY attempt_date (attempt_date)
+        ) $charset_collate;";
+        
+        require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
+        dbDelta( $sql );
+    }
+}
+
+// Generate and send OTP
+function aurora_generate_and_send_otp( $user_id, $email, $action_type ) {
+    global $wpdb;
+    
+    $otp_table = $wpdb->prefix . 'aurora_otps';
+    $attempt_table = $wpdb->prefix . 'aurora_otp_attempts';
+    
+    // Check daily attempt limit
+    $today = date( 'Y-m-d' );
+    $attempts = $wpdb->get_var( $wpdb->prepare(
+        "SELECT attempt_count FROM $attempt_table WHERE user_id = %d AND email = %s AND attempt_date = %s",
+        $user_id, $email, $today
+    ) );
+    
+    if ( ! $attempts ) {
+        $attempts = 0;
+    }
+    
+    if ( $attempts >= 5 ) {
+        return array(
+            'success' => false,
+            'message' => __( 'Maximum OTP attempts (5) reached today. Please try again tomorrow.', 'aurora' )
+        );
+    }
+    
+    // Generate 6-digit OTP
+    $otp_code = str_pad( mt_rand( 0, 999999 ), 6, '0', STR_PAD_LEFT );
+    $expires_at = date( 'Y-m-d H:i:s', time() + 10 * 60 ); // 10 minutes
+    
+    // Store OTP in database
+    $wpdb->insert(
+        $otp_table,
+        array(
+            'user_id' => $user_id,
+            'otp_code' => $otp_code,
+            'email' => $email,
+            'action_type' => $action_type,
+            'expires_at' => $expires_at
+        ),
+        array( '%d', '%s', '%s', '%s', '%s' )
+    );
+    
+    // Update attempt count
+    if ( $attempts == 0 ) {
+        $wpdb->insert(
+            $attempt_table,
+            array(
+                'user_id' => $user_id,
+                'email' => $email,
+                'attempt_date' => $today,
+                'attempt_count' => 1
+            ),
+            array( '%d', '%s', '%s', '%d' )
+        );
+    } else {
+        $wpdb->update(
+            $attempt_table,
+            array( 'attempt_count' => $attempts + 1 ),
+            array( 'user_id' => $user_id, 'email' => $email, 'attempt_date' => $today ),
+            array( '%d' ),
+            array( '%d', '%s', '%s' )
+        );
+    }
+    
+    // Send OTP via email
+    $user = get_user_by( 'ID', $user_id );
+    $action_text = ( 'email_change' === $action_type ) ? 'change your email' : 'reset your password';
+    
+    $email_body = sprintf(
+        __( 'Hello %s,\n\nYour OTP code is: %s\n\nThis code will expire in 10 minutes.\n\nIf you did not request this, please ignore this email.\n\nBest regards,\nThe Store Team', 'aurora' ),
+        $user->display_name,
+        $otp_code
+    );
+    
+    $subject = sprintf( __( 'Your OTP Code to %s', 'aurora' ), $action_text );
+    
+    wp_mail( $email, $subject, $email_body );
+    
+    return array(
+        'success' => true,
+        'message' => sprintf( __( 'OTP sent to %s', 'aurora' ), $email ),
+        'attempts_left' => 5 - $attempts - 1
+    );
+}
+
+// Verify OTP
+function aurora_verify_otp( $user_id, $email, $otp_code, $action_type ) {
+    global $wpdb;
+    
+    $otp_table = $wpdb->prefix . 'aurora_otps';
+    
+    $otp = $wpdb->get_row( $wpdb->prepare(
+        "SELECT * FROM $otp_table WHERE user_id = %d AND email = %s AND otp_code = %s AND action_type = %s AND is_used = 0 AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1",
+        $user_id, $email, $otp_code, $action_type
+    ) );
+    
+    if ( ! $otp ) {
+        return array(
+            'success' => false,
+            'message' => __( 'Invalid or expired OTP. Please request a new one.', 'aurora' )
+        );
+    }
+    
+    // Mark OTP as used
+    $wpdb->update(
+        $otp_table,
+        array( 'is_used' => 1 ),
+        array( 'id' => $otp->id ),
+        array( '%d' ),
+        array( '%d' )
+    );
+    
+    return array(
+        'success' => true,
+        'message' => __( 'OTP verified successfully!', 'aurora' )
+    );
+}
+
+// Update user email with verification
+add_action( 'wp_ajax_aurora_update_email', 'aurora_update_email_ajax' );
+function aurora_update_email_ajax() {
+    check_ajax_referer( 'aurora_profile_nonce', 'nonce' );
+    
+    if ( ! is_user_logged_in() ) {
+        wp_send_json_error( array( 'message' => 'Not logged in' ) );
+    }
+    
+    $user_id = get_current_user_id();
+    $new_email = sanitize_email( $_POST['email'] );
+    $otp_code = sanitize_text_field( $_POST['otp'] );
+    
+    if ( ! $new_email || ! $otp_code ) {
+        wp_send_json_error( array( 'message' => 'Missing required fields' ) );
+    }
+    
+    // Verify OTP
+    $verify = aurora_verify_otp( $user_id, $new_email, $otp_code, 'email_change' );
+    if ( ! $verify['success'] ) {
+        wp_send_json_error( $verify );
+    }
+    
+    // Check if email already exists
+    if ( email_exists( $new_email ) ) {
+        wp_send_json_error( array( 'message' => __( 'This email is already in use.', 'aurora' ) ) );
+    }
+    
+    // Update email
+    wp_update_user( array(
+        'ID' => $user_id,
+        'user_email' => $new_email
+    ) );
+    
+    wp_send_json_success( array( 'message' => __( 'Email updated successfully!', 'aurora' ) ) );
+}
+
+// Update user password with verification
+add_action( 'wp_ajax_aurora_update_password', 'aurora_update_password_ajax' );
+function aurora_update_password_ajax() {
+    check_ajax_referer( 'aurora_profile_nonce', 'nonce' );
+    
+    if ( ! is_user_logged_in() ) {
+        wp_send_json_error( array( 'message' => 'Not logged in' ) );
+    }
+    
+    $user_id = get_current_user_id();
+    $current_password = $_POST['current_password'];
+    $new_password = $_POST['new_password'];
+    $otp_code = sanitize_text_field( $_POST['otp'] );
+    
+    $user = get_user_by( 'ID', $user_id );
+    
+    // Verify current password
+    if ( ! wp_check_password( $current_password, $user->user_pass ) ) {
+        wp_send_json_error( array( 'message' => __( 'Current password is incorrect.', 'aurora' ) ) );
+    }
+    
+    // Verify OTP
+    $verify = aurora_verify_otp( $user_id, $user->user_email, $otp_code, 'password_change' );
+    if ( ! $verify['success'] ) {
+        wp_send_json_error( $verify );
+    }
+    
+    // Update password
+    wp_update_user( array(
+        'ID' => $user_id,
+        'user_pass' => $new_password
+    ) );
+    
+    wp_send_json_success( array( 'message' => __( 'Password updated successfully!', 'aurora' ) ) );
+}
+
+// Reset password with OTP
+add_action( 'wp_ajax_aurora_reset_password', 'aurora_reset_password_ajax' );
+function aurora_reset_password_ajax() {
+    check_ajax_referer( 'aurora_profile_nonce', 'nonce' );
+    
+    $email = sanitize_email( $_POST['email'] );
+    
+    $user = get_user_by( 'email', $email );
+    if ( ! $user ) {
+        wp_send_json_error( array( 'message' => __( 'No account found with this email.', 'aurora' ) ) );
+    }
+    
+    // Generate and send OTP
+    $result = aurora_generate_and_send_otp( $user->ID, $email, 'password_reset' );
+    
+    wp_send_json( $result );
+}
+
+// Confirm password reset with OTP
+add_action( 'wp_ajax_aurora_confirm_password_reset', 'aurora_confirm_password_reset_ajax' );
+function aurora_confirm_password_reset_ajax() {
+    check_ajax_referer( 'aurora_profile_nonce', 'nonce' );
+    
+    $email = sanitize_email( $_POST['email'] );
+    $otp_code = sanitize_text_field( $_POST['otp'] );
+    $new_password = $_POST['new_password'];
+    
+    $user = get_user_by( 'email', $email );
+    if ( ! $user ) {
+        wp_send_json_error( array( 'message' => __( 'No account found with this email.', 'aurora' ) ) );
+    }
+    
+    // Verify OTP
+    $verify = aurora_verify_otp( $user->ID, $email, $otp_code, 'password_reset' );
+    if ( ! $verify['success'] ) {
+        wp_send_json_error( $verify );
+    }
+    
+    // Update password
+    wp_update_user( array(
+        'ID' => $user->ID,
+        'user_pass' => $new_password
+    ) );
+    
+    wp_send_json_success( array( 'message' => __( 'Password reset successfully!', 'aurora' ) ) );
+}
+
+// Handle profile image upload
+add_action( 'wp_ajax_aurora_upload_profile_image', 'aurora_upload_profile_image_ajax' );
+function aurora_upload_profile_image_ajax() {
+    check_ajax_referer( 'aurora_profile_nonce', 'nonce' );
+    
+    if ( ! is_user_logged_in() ) {
+        wp_send_json_error( array( 'message' => 'Not logged in' ) );
+    }
+    
+    if ( ! isset( $_FILES['profile_image'] ) ) {
+        wp_send_json_error( array( 'message' => 'No file uploaded' ) );
+    }
+    
+    $user_id = get_current_user_id();
+    require_once( ABSPATH . 'wp-admin/includes/file.php' );
+    require_once( ABSPATH . 'wp-admin/includes/image.php' );
+    require_once( ABSPATH . 'wp-admin/includes/media.php' );
+    
+    $attachment_id = media_handle_upload( 'profile_image', 0 );
+    
+    if ( is_wp_error( $attachment_id ) ) {
+        wp_send_json_error( array( 'message' => $attachment_id->get_error_message() ) );
+    }
+    
+    // Delete old profile image if exists
+    $old_image_id = get_user_meta( $user_id, 'aurora_profile_image', true );
+    if ( $old_image_id && is_numeric( $old_image_id ) ) {
+        wp_delete_attachment( $old_image_id, true );
+    }
+    
+    // Save new profile image ID
+    update_user_meta( $user_id, 'aurora_profile_image', $attachment_id );
+    
+    $image_url = wp_get_attachment_url( $attachment_id );
+    
+    wp_send_json_success( array(
+        'message' => __( 'Profile image updated!', 'aurora' ),
+        'image_url' => $image_url
+    ) );
+}
+
+// Get user profile image
+function aurora_get_user_profile_image( $user_id ) {
+    $image_id = get_user_meta( $user_id, 'aurora_profile_image', true );
+    
+    if ( $image_id && is_numeric( $image_id ) ) {
+        return wp_get_attachment_url( $image_id );
+    }
+    
+    // Return default avatar
+    return get_avatar_url( $user_id, array( 'size' => 150 ) );
+}
+
+// Send OTP AJAX
+add_action( 'wp_ajax_aurora_request_otp', 'aurora_request_otp_ajax' );
+function aurora_request_otp_ajax() {
+    check_ajax_referer( 'aurora_profile_nonce', 'nonce' );
+    
+    $action_type = sanitize_text_field( $_POST['action_type'] );
+    
+    if ( 'email_change' === $action_type || 'password_change' === $action_type ) {
+        if ( ! is_user_logged_in() ) {
+            wp_send_json_error( array( 'message' => 'Not logged in' ) );
+        }
+        
+        $user_id = get_current_user_id();
+        $user = get_user_by( 'ID', $user_id );
+        
+        if ( 'email_change' === $action_type ) {
+            $new_email = sanitize_email( $_POST['email'] );
+            $current_password = $_POST['password'];
+            
+            // Verify current password
+            if ( ! wp_check_password( $current_password, $user->user_pass ) ) {
+                wp_send_json_error( array( 'message' => __( 'Password is incorrect.', 'aurora' ) ) );
+            }
+            
+            $email = $new_email;
+        } else {
+            $email = $user->user_email;
+        }
+        
+        $result = aurora_generate_and_send_otp( $user_id, $email, $action_type );
+    } elseif ( 'password_reset' === $action_type ) {
+        $email = sanitize_email( $_POST['email'] );
+        $user = get_user_by( 'email', $email );
+        
+        if ( ! $user ) {
+            // Don't reveal if email exists for security
+            wp_send_json_success( array(
+                'message' => __( 'If an account exists with this email, you will receive an OTP shortly.', 'aurora' )
+            ) );
+            return;
+        }
+        
+        $result = aurora_generate_and_send_otp( $user->ID, $email, 'password_reset' );
+    }
+    
+    wp_send_json( $result );
+}
