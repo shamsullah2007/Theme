@@ -77,6 +77,7 @@ function aurora_scripts() {
     wp_enqueue_style( 'aurora-theme', get_template_directory_uri() . '/assets/css/theme.css', [], $theme_version );
     wp_enqueue_style( 'aurora-woocommerce', get_template_directory_uri() . '/assets/css/woocommerce.css', [ 'woocommerce-general' ], $theme_version );
     wp_enqueue_style( 'aurora-admin-pages', get_template_directory_uri() . '/assets/css/admin-pages.css', [], $theme_version );
+    wp_enqueue_style( 'aurora-order-manager', get_template_directory_uri() . '/assets/css/order-manager.css', [], $theme_version );
     wp_enqueue_style( 'aurora-overrides', get_template_directory_uri() . '/assets/css/overrides.css', [ 'aurora-theme', 'aurora-woocommerce', 'aurora-admin-pages' ], $theme_version );
     
     wp_enqueue_script( 'aurora-animations', get_template_directory_uri() . '/assets/js/animations.js', [ 'jquery' ], $theme_version, true );
@@ -141,6 +142,14 @@ function aurora_enhance_product_search( $query ) {
             $query->set( 'meta_query', $meta_query );
         }
     }
+    
+    // Allow guests to view published pages
+    if ( ! is_user_logged_in() && ! is_admin() && $query->is_main_query() ) {
+        if ( $query->is_singular( 'page' ) ) {
+            // For single page requests, only show published pages
+            $query->set( 'post_status', 'publish' );
+        }
+    }
 }
 
 // WooCommerce wrapper tweaks.
@@ -192,6 +201,77 @@ function aurora_add_pages_to_menu( $items, $args ) {
                 );
             }
         }
+    }
+    return $where;
+}
+
+// Ensure WooCommerce critical pages are published and accessible to guests
+add_action( 'wp_loaded', 'aurora_fix_page_visibility_for_guests' );
+function aurora_fix_page_visibility_for_guests() {
+    // Only run this once per admin session
+    if ( get_transient( 'aurora_page_visibility_fixed' ) ) {
+        return;
+    }
+    
+    // Fix visibility for critical WooCommerce pages
+    $critical_pages = array(
+        'shop'      => 'Shop',
+        'cart'      => 'Cart',
+        'checkout'  => 'Checkout',
+        'myaccount' => 'My Account',
+    );
+    
+    foreach ( $critical_pages as $page_type => $page_name ) {
+        $page_id = wc_get_page_id( $page_type );
+        
+        if ( $page_id && $page_id > 0 ) {
+            $page = get_post( $page_id );
+            
+            // If page exists and is not published, make it published
+            if ( $page && 'publish' !== $page->post_status ) {
+                wp_update_post( array(
+                    'ID'          => $page_id,
+                    'post_status' => 'publish',
+                ) );
+            }
+        }
+    }
+    
+    // Also ensure other important pages are published
+    $pages_to_check = get_pages( array(
+        'post_status' => array( 'private', 'draft' ),
+    ) );
+    
+    foreach ( $pages_to_check as $page ) {
+        $title_lower = strtolower( $page->post_title );
+        // Publish pages with these keywords
+        $publish_keywords = array( 'shop', 'cart', 'checkout', 'account', 'login', 'register', 'sample' );
+        
+        foreach ( $publish_keywords as $keyword ) {
+            if ( strpos( $title_lower, $keyword ) !== false ) {
+                wp_update_post( array(
+                    'ID'          => $page->ID,
+                    'post_status' => 'publish',
+                ) );
+                break;
+            }
+        }
+    }
+    
+    set_transient( 'aurora_page_visibility_fixed', true, HOUR_IN_SECONDS );
+}
+
+// Remove private pages from menu for guests
+add_filter( 'wp_get_nav_menu_items', 'aurora_filter_private_pages_from_menu' );
+function aurora_filter_private_pages_from_menu( $items ) {
+    if ( ! is_user_logged_in() ) {
+        $items = array_filter( $items, function( $item ) {
+            if ( 'page_item' === $item->type || 'page' === $item->type ) {
+                $page = get_post( $item->object_id );
+                return ( $page && 'publish' === $page->post_status );
+            }
+            return true;
+        } );
     }
     return $items;
 }

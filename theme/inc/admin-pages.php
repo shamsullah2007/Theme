@@ -731,3 +731,293 @@ function aurora_get_categories_data() {
     }
     return $html;
 }
+// ===== Order Management =====
+
+add_shortcode( 'aurora_order_manager', 'aurora_order_manager_shortcode' );
+function aurora_order_manager_shortcode() {
+    if ( ! current_user_can( 'manage_woocommerce' ) && ! current_user_can( 'manage_options' ) ) {
+        return '<p class="alert alert-danger">' . esc_html__( 'You do not have permission to access this page.', 'aurora' ) . '</p>';
+    }
+
+    ob_start();
+    ?>
+    <div class="aurora-order-manager">
+        <div class="order-manager-header">
+            <h1><?php esc_html_e( 'Order Management', 'aurora' ); ?></h1>
+            <div class="order-stats">
+                <?php
+                $processing = wc_orders_count( 'processing' );
+                $pending = wc_orders_count( 'pending' );
+                $completed = wc_orders_count( 'completed' );
+                ?>
+                <div class="stat-card">
+                    <span class="stat-number"><?php echo esc_html( $pending ); ?></span>
+                    <span class="stat-label"><?php esc_html_e( 'Pending', 'aurora' ); ?></span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number"><?php echo esc_html( $processing ); ?></span>
+                    <span class="stat-label"><?php esc_html_e( 'Processing', 'aurora' ); ?></span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number"><?php echo esc_html( $completed ); ?></span>
+                    <span class="stat-label"><?php esc_html_e( 'Completed', 'aurora' ); ?></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="order-filters">
+            <select id="order-status-filter" class="filter-select">
+                <option value="all"><?php esc_html_e( 'All Orders', 'aurora' ); ?></option>
+                <option value="pending"><?php esc_html_e( 'Pending Payment', 'aurora' ); ?></option>
+                <option value="processing"><?php esc_html_e( 'Processing', 'aurora' ); ?></option>
+                <option value="packed"><?php esc_html_e( 'Packed', 'aurora' ); ?></option>
+                <option value="shipped"><?php esc_html_e( 'Shipped', 'aurora' ); ?></option>
+                <option value="completed"><?php esc_html_e( 'Completed', 'aurora' ); ?></option>
+            </select>
+            <input type="text" id="order-search" class="search-input" placeholder="<?php esc_attr_e( 'Search by Order ID or Customer Name...', 'aurora' ); ?>" />
+        </div>
+
+        <div class="orders-grid">
+            <?php
+            $args = array(
+                'limit' => -1,
+                'orderby' => 'date',
+                'order' => 'DESC',
+            );
+            $orders = wc_get_orders( $args );
+
+            if ( ! empty( $orders ) ) {
+                foreach ( $orders as $order ) {
+                    aurora_render_order_card( $order );
+                }
+            } else {
+                echo '<p class="no-orders">' . esc_html__( 'No orders found.', 'aurora' ) . '</p>';
+            }
+            ?>
+        </div>
+    </div>
+
+    <script>
+    jQuery(document).ready(function($) {
+        // Status filter
+        $('#order-status-filter').on('change', function() {
+            var status = $(this).val();
+            if (status === 'all') {
+                $('.order-card').show();
+            } else {
+                $('.order-card').hide();
+                $('.order-card[data-status="' + status + '"]').show();
+            }
+        });
+
+        // Search filter
+        $('#order-search').on('keyup', function() {
+            var searchTerm = $(this).val().toLowerCase();
+            $('.order-card').each(function() {
+                var orderText = $(this).text().toLowerCase();
+                if (orderText.indexOf(searchTerm) > -1) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        });
+
+        // Status update
+        $(document).on('change', '.order-status-select', function() {
+            var $select = $(this);
+            var orderId = $select.data('order-id');
+            var newStatus = $select.val();
+            var $card = $select.closest('.order-card');
+
+            $.ajax({
+                url: '<?php echo admin_url( 'admin-ajax.php' ); ?>',
+                type: 'POST',
+                data: {
+                    action: 'aurora_update_order_status',
+                    order_id: orderId,
+                    status: newStatus,
+                    nonce: '<?php echo wp_create_nonce( 'aurora_order_status' ); ?>'
+                },
+                beforeSend: function() {
+                    $select.prop('disabled', true);
+                    $card.addClass('updating');
+                },
+                success: function(response) {
+                    if (response.success) {
+                        $card.attr('data-status', newStatus);
+                        $card.find('.status-badge').remove();
+                        $card.find('.order-header').append(
+                            '<span class="status-badge status-' + newStatus + '">' + 
+                            response.data.status_label + 
+                            '</span>'
+                        );
+                        
+                        // Show success message
+                        var $message = $('<div class="status-update-message">Status updated!</div>');
+                        $card.append($message);
+                        setTimeout(function() {
+                            $message.fadeOut(function() { $(this).remove(); });
+                        }, 2000);
+                    } else {
+                        alert('Error updating order status');
+                    }
+                },
+                complete: function() {
+                    $select.prop('disabled', false);
+                    $card.removeClass('updating');
+                }
+            });
+        });
+    });
+    </script>
+    <?php
+    return ob_get_clean();
+}
+
+function aurora_render_order_card( $order ) {
+    $order_id = $order->get_id();
+    $order_status = $order->get_status();
+    $order_date = $order->get_date_created()->format( 'M d, Y H:i' );
+    $customer_name = $order->get_billing_first_name() . ' ' . $order->get_billing_last_name();
+    $customer_email = $order->get_billing_email();
+    $order_total = $order->get_formatted_order_total();
+    $items = $order->get_items();
+    ?>
+    <div class="order-card" data-status="<?php echo esc_attr( $order_status ); ?>">
+        <div class="order-header">
+            <div class="order-id">
+                <strong>#<?php echo esc_html( $order_id ); ?></strong>
+            </div>
+            <span class="status-badge status-<?php echo esc_attr( $order_status ); ?>">
+                <?php echo esc_html( wc_get_order_status_name( $order_status ) ); ?>
+            </span>
+        </div>
+
+        <div class="order-customer">
+            <div class="customer-icon">👤</div>
+            <div class="customer-info">
+                <strong><?php echo esc_html( $customer_name ); ?></strong>
+                <span class="customer-email"><?php echo esc_html( $customer_email ); ?></span>
+            </div>
+        </div>
+
+        <div class="order-date">
+            <span class="date-icon">📅</span>
+            <?php echo esc_html( $order_date ); ?>
+        </div>
+
+        <div class="order-items">
+            <strong><?php esc_html_e( 'Products:', 'aurora' ); ?></strong>
+            <ul class="product-list">
+                <?php foreach ( $items as $item ) : 
+                    $product = $item->get_product();
+                    $product_name = $item->get_name();
+                    $quantity = $item->get_quantity();
+                ?>
+                <li>
+                    <?php if ( $product && $product->get_image_id() ) : ?>
+                        <img src="<?php echo esc_url( wp_get_attachment_image_url( $product->get_image_id(), 'thumbnail' ) ); ?>" alt="" class="product-thumb" />
+                    <?php endif; ?>
+                    <span class="product-name"><?php echo esc_html( $product_name ); ?></span>
+                    <span class="product-qty">× <?php echo esc_html( $quantity ); ?></span>
+                </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+
+        <div class="order-total">
+            <strong><?php esc_html_e( 'Total:', 'aurora' ); ?></strong>
+            <span class="total-amount"><?php echo wp_kses_post( $order_total ); ?></span>
+        </div>
+
+        <div class="order-actions">
+            <select class="order-status-select" data-order-id="<?php echo esc_attr( $order_id ); ?>">
+                <option value="pending" <?php selected( $order_status, 'pending' ); ?>><?php esc_html_e( 'Pending Payment', 'aurora' ); ?></option>
+                <option value="processing" <?php selected( $order_status, 'processing' ); ?>><?php esc_html_e( 'Processing', 'aurora' ); ?></option>
+                <option value="packed" <?php selected( $order_status, 'packed' ); ?>><?php esc_html_e( 'Packed', 'aurora' ); ?></option>
+                <option value="shipped" <?php selected( $order_status, 'shipped' ); ?>><?php esc_html_e( 'Shipped', 'aurora' ); ?></option>
+                <option value="completed" <?php selected( $order_status, 'completed' ); ?>><?php esc_html_e( 'Completed', 'aurora' ); ?></option>
+                <option value="cancelled" <?php selected( $order_status, 'cancelled' ); ?>><?php esc_html_e( 'Cancelled', 'aurora' ); ?></option>
+            </select>
+            <a href="<?php echo esc_url( $order->get_edit_order_url() ); ?>" class="button button-secondary" target="_blank">
+                <?php esc_html_e( 'View Details', 'aurora' ); ?>
+            </a>
+        </div>
+    </div>
+    <?php
+}
+
+// AJAX handler for order status update
+add_action( 'wp_ajax_aurora_update_order_status', 'aurora_update_order_status_ajax' );
+function aurora_update_order_status_ajax() {
+    check_ajax_referer( 'aurora_order_status', 'nonce' );
+
+    if ( ! current_user_can( 'manage_woocommerce' ) && ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( array( 'message' => 'Permission denied' ) );
+    }
+
+    $order_id = isset( $_POST['order_id'] ) ? absint( $_POST['order_id'] ) : 0;
+    $new_status = isset( $_POST['status'] ) ? sanitize_text_field( $_POST['status'] ) : '';
+
+    if ( ! $order_id || ! $new_status ) {
+        wp_send_json_error( array( 'message' => 'Invalid data' ) );
+    }
+
+    $order = wc_get_order( $order_id );
+    if ( ! $order ) {
+        wp_send_json_error( array( 'message' => 'Order not found' ) );
+    }
+
+    $order->update_status( $new_status );
+    
+    // Add order note
+    $order->add_order_note( sprintf( 
+        __( 'Order status changed to %s by admin.', 'aurora' ), 
+        wc_get_order_status_name( $new_status ) 
+    ) );
+
+    wp_send_json_success( array(
+        'status_label' => wc_get_order_status_name( $new_status ),
+        'message' => 'Status updated successfully'
+    ) );
+}
+
+// Register custom order statuses
+add_action( 'init', 'aurora_register_custom_order_statuses' );
+function aurora_register_custom_order_statuses() {
+    register_post_status( 'wc-packed', array(
+        'label'                     => _x( 'Packed', 'Order status', 'aurora' ),
+        'public'                    => true,
+        'exclude_from_search'       => false,
+        'show_in_admin_all_list'    => true,
+        'show_in_admin_status_list' => true,
+        'label_count'               => _n_noop( 'Packed <span class="count">(%s)</span>', 'Packed <span class="count">(%s)</span>', 'aurora' )
+    ) );
+
+    register_post_status( 'wc-shipped', array(
+        'label'                     => _x( 'Shipped', 'Order status', 'aurora' ),
+        'public'                    => true,
+        'exclude_from_search'       => false,
+        'show_in_admin_all_list'    => true,
+        'show_in_admin_status_list' => true,
+        'label_count'               => _n_noop( 'Shipped <span class="count">(%s)</span>', 'Shipped <span class="count">(%s)</span>', 'aurora' )
+    ) );
+}
+
+// Add custom statuses to WooCommerce
+add_filter( 'wc_order_statuses', 'aurora_add_custom_order_statuses' );
+function aurora_add_custom_order_statuses( $order_statuses ) {
+    $new_order_statuses = array();
+
+    foreach ( $order_statuses as $key => $status ) {
+        $new_order_statuses[ $key ] = $status;
+        
+        if ( 'wc-processing' === $key ) {
+            $new_order_statuses['wc-packed'] = _x( 'Packed', 'Order status', 'aurora' );
+            $new_order_statuses['wc-shipped'] = _x( 'Shipped', 'Order status', 'aurora' );
+        }
+    }
+
+    return $new_order_statuses;
+}
