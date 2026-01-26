@@ -196,6 +196,33 @@ function aurora_add_pages_to_menu( $items, $args ) {
     return $items;
 }
 
+// Fallback primary menu that lists all published pages
+function aurora_primary_menu_fallback() {
+    $pages = get_pages( [
+        'post_status' => 'publish',
+        'orderby'     => 'post_title',
+        'sort_column' => 'post_title',
+        'exclude'     => [ get_option( 'page_on_front' ), get_option( 'page_for_posts' ) ],
+    ] );
+
+    if ( empty( $pages ) ) {
+        return;
+    }
+
+    $current_post_id = get_queried_object_id();
+    echo '<ul class="menu menu-primary">';
+    foreach ( $pages as $page ) {
+        $active_class = ( $current_post_id === $page->ID ) ? 'current-menu-item' : '';
+        printf(
+            '<li class="menu-item %1$s"><a href="%2$s">%3$s</a></li>',
+            esc_attr( $active_class ),
+            esc_url( get_permalink( $page->ID ) ),
+            esc_html( $page->post_title )
+        );
+    }
+    echo '</ul>';
+}
+
 // Enhance checkout form styling with CSS classes
 add_filter( 'woocommerce_checkout_fields', 'aurora_checkout_fields_wrapper' );
 function aurora_checkout_fields_wrapper( $fields ) {

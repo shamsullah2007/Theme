@@ -122,10 +122,10 @@
 }
 
 .topbar {
-    display: grid;
-    grid-template-columns: 200px 1fr 200px;
-    gap: 20px;
+    display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 20px;
     padding: 16px 32px;
     max-width: 1400px;
     margin: 0 auto;
@@ -265,6 +265,9 @@
 }
 
 .account-link,
+.login-link,
+.register-link,
+.logout-link,
 .cart-link {
     display: inline-flex;
     align-items: center;
@@ -279,6 +282,9 @@
 }
 
 .account-link:hover,
+.login-link:hover,
+.register-link:hover,
+.logout-link:hover,
 .cart-link:hover {
     background: rgba(255, 255, 255, 0.15);
     transform: translateY(-2px);
@@ -543,10 +549,10 @@ input[type="radio"]:hover {
 }
 
 .topbar {
-    display: grid;
-    grid-template-columns: 200px 1fr auto;
-    gap: 16px;
+    display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 16px;
     padding: 12px 20px;
     animation: fadeInUp 0.8s ease;
 }
@@ -1100,12 +1106,9 @@ input[type="radio"]:hover {
 
 @media (max-width: 960px) {
     .topbar {
-        grid-template-columns: 1fr;
+        flex-direction: column;
+        align-items: flex-start;
         row-gap: 10px;
-    }
-
-    .search-form {
-        grid-template-columns: 1fr;
     }
 
     .shop-layout {
