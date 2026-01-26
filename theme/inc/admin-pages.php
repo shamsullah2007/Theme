@@ -13,26 +13,395 @@ function aurora_login_form_shortcode() {
 
     ob_start();
     ?>
-    <div class="aurora-login-form">
-        <form method="post" action="<?php echo esc_url( wp_login_url( home_url() ) ); ?>" class="login-form">
-            <div class="form-group">
-                <label for="log"><?php esc_html_e( 'Username or Email', 'aurora' ); ?></label>
-                <input type="text" name="log" id="log" class="form-control" required />
+    <div class="aurora-login-container">
+        <div class="aurora-login-wrapper">
+            <div class="login-card">
+                <h1><?php esc_html_e( 'Welcome Back', 'aurora' ); ?></h1>
+                <p class="login-subtitle"><?php esc_html_e( 'Sign in to your account to continue', 'aurora' ); ?></p>
+
+                <!-- Login Form -->
+                <form method="post" action="<?php echo esc_url( wp_login_url( home_url() ) ); ?>" class="login-form" id="aurora-login-form">
+                    <div class="form-group">
+                        <label for="log"><?php esc_html_e( 'Email or Username', 'aurora' ); ?></label>
+                        <input type="text" name="log" id="log" class="form-input" placeholder="<?php esc_attr_e( 'Enter your email or username', 'aurora' ); ?>" required />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pwd"><?php esc_html_e( 'Password', 'aurora' ); ?></label>
+                        <input type="password" name="pwd" id="pwd" class="form-input" placeholder="<?php esc_attr_e( 'Enter your password', 'aurora' ); ?>" required />
+                    </div>
+
+                    <div class="form-group checkbox">
+                        <label><input type="checkbox" name="rememberme" value="forever" /> <?php esc_html_e( 'Remember me', 'aurora' ); ?></label>
+                    </div>
+
+                    <button type="submit" class="button button-primary button-large"><?php esc_html_e( 'Sign In', 'aurora' ); ?></button>
+                </form>
+
+                <!-- Forgot Password Link -->
+                <div class="login-divider">
+                    <span><?php esc_html_e( 'or', 'aurora' ); ?></span>
+                </div>
+
+                <button type="button" class="button button-secondary button-large" id="forgot-password-toggle"><?php esc_html_e( 'Forgot Password?', 'aurora' ); ?></button>
+
+                <!-- Forgot Password Form (Hidden) -->
+                <form class="forgot-password-form" id="aurora-forgot-form" style="display: none;">
+                    <div class="form-group">
+                        <label for="forgot-email"><?php esc_html_e( 'Email Address', 'aurora' ); ?></label>
+                        <input type="email" id="forgot-email" class="form-input" placeholder="<?php esc_attr_e( 'Enter your email', 'aurora' ); ?>" required />
+                    </div>
+                    <button type="button" class="button button-primary button-large" id="send-reset-otp"><?php esc_html_e( 'Send OTP', 'aurora' ); ?></button>
+                    <button type="button" class="button button-secondary" id="cancel-forgot"><?php esc_html_e( 'Back to Login', 'aurora' ); ?></button>
+
+                    <!-- OTP Section (Hidden) -->
+                    <div id="reset-otp-section" style="display: none; margin-top: 20px;">
+                        <div class="form-group">
+                            <label for="reset-otp"><?php esc_html_e( 'Enter OTP (sent to your email)', 'aurora' ); ?></label>
+                            <input type="text" id="reset-otp" class="form-input" placeholder="<?php esc_attr_e( '000000', 'aurora' ); ?>" maxlength="6" required />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="reset-new-password"><?php esc_html_e( 'New Password', 'aurora' ); ?></label>
+                            <input type="password" id="reset-new-password" class="form-input" placeholder="<?php esc_attr_e( 'Enter new password', 'aurora' ); ?>" required />
+                        </div>
+
+                        <button type="button" class="button button-success button-large" id="confirm-reset-password"><?php esc_html_e( 'Reset Password', 'aurora' ); ?></button>
+                        <button type="button" class="button button-secondary" id="skip-reset"><?php esc_html_e( 'Skip', 'aurora' ); ?></button>
+                    </div>
+                </form>
+
+                <!-- Register Link -->
+                <div class="login-footer">
+                    <p><?php esc_html_e( "Don't have an account?", 'aurora' ); ?> <a href="<?php echo esc_url( get_page_by_path( 'registration' ) ? get_permalink( get_page_by_path( 'registration' ) ) : add_query_arg( 'action', 'register', wc_get_page_permalink( 'myaccount' ) ) ); ?>" class="register-link"><?php esc_html_e( 'Create one now', 'aurora' ); ?></a></p>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="pwd"><?php esc_html_e( 'Password', 'aurora' ); ?></label>
-                <input type="password" name="pwd" id="pwd" class="form-control" required />
-            </div>
-            <div class="form-group checkbox">
-                <label><input type="checkbox" name="rememberme" value="forever" /> <?php esc_html_e( 'Remember Me', 'aurora' ); ?></label>
-            </div>
-            <button type="submit" class="button button-primary"><?php esc_html_e( 'Sign In', 'aurora' ); ?></button>
-            <div class="form-links">
-                <a href="<?php echo esc_url( wp_lostpassword_url() ); ?>"><?php esc_html_e( 'Lost Password?', 'aurora' ); ?></a>
-                <a href="<?php echo esc_url( site_url( '/register/' ) ); ?>"><?php esc_html_e( 'Create Account', 'aurora' ); ?></a>
-            </div>
-        </form>
+        </div>
     </div>
+
+    <style>
+        .aurora-login-container {
+            min-height: calc(100vh - 200px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #f5f7ff 0%, #f0f4ff 100%);
+            padding: 40px 20px;
+        }
+
+        .aurora-login-wrapper {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-card {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+        }
+
+        .login-card h1 {
+            font-size: 28px;
+            margin: 0 0 8px 0;
+            color: #1a1a1a;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .login-subtitle {
+            font-size: 14px;
+            color: #6b7280;
+            text-align: center;
+            margin: 0 0 30px 0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #1a1a1a;
+            font-size: 14px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #0b57d0;
+            box-shadow: 0 0 0 3px rgba(11, 87, 208, 0.1);
+        }
+
+        .form-group.checkbox {
+            display: flex;
+            align-items: center;
+        }
+
+        .form-group.checkbox label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 0;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .form-group.checkbox input {
+            cursor: pointer;
+        }
+
+        .button {
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            display: inline-block;
+            text-decoration: none;
+        }
+
+        .button-primary {
+            background: #0b57d0;
+            color: white;
+        }
+
+        .button-primary:hover {
+            background: #0942a6;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(11, 87, 208, 0.3);
+        }
+
+        .button-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .button-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .button-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .button-success:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .button-large {
+            width: 100%;
+        }
+
+        .login-divider {
+            text-align: center;
+            margin: 30px 0;
+            position: relative;
+            color: #9ca3af;
+            font-size: 13px;
+        }
+
+        .login-divider span {
+            background: white;
+            padding: 0 12px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-divider::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            right: 0;
+            height: 1px;
+            background: #e5e7eb;
+            z-index: 0;
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .login-footer p {
+            margin: 0;
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .register-link {
+            color: #0b57d0;
+            font-weight: 600;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .register-link:hover {
+            color: #0942a6;
+            text-decoration: underline;
+        }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            animation: slideDown 0.3s ease;
+        }
+
+        .message.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+
+        .message.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .login-card {
+                padding: 30px 20px;
+            }
+
+            .login-card h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+
+    <script>
+        jQuery(document).ready(function($) {
+            const nonce = '<?php echo wp_create_nonce( 'aurora_profile_nonce' ); ?>';
+
+            // Toggle forgot password form
+            $('#forgot-password-toggle').on('click', function() {
+                $('#aurora-login-form').hide();
+                $('#forgot-password-toggle').hide();
+                $('#aurora-forgot-form').show();
+            });
+
+            $('#cancel-forgot').on('click', function() {
+                $('#aurora-forgot-form').hide();
+                $('#reset-otp-section').hide();
+                $('#aurora-login-form').show();
+                $('#forgot-password-toggle').show();
+            });
+
+            // Send reset OTP
+            $('#send-reset-otp').on('click', function() {
+                const email = $('#forgot-email').val();
+                if (!email) {
+                    showMessage('Please enter your email', 'error');
+                    return;
+                }
+
+                $.ajax({
+                    url: '<?php echo admin_url( 'admin-ajax.php' ); ?>',
+                    type: 'POST',
+                    data: {
+                        action: 'aurora_reset_password',
+                        nonce: nonce,
+                        email: email
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            showMessage(response.data.message, 'success');
+                            $('#reset-otp-section').show();
+                            $('#send-reset-otp').prop('disabled', true);
+                        } else {
+                            showMessage(response.data.message, 'error');
+                        }
+                    }
+                });
+            });
+
+            // Confirm password reset
+            $('#confirm-reset-password').on('click', function() {
+                const email = $('#forgot-email').val();
+                const otp = $('#reset-otp').val();
+                const password = $('#reset-new-password').val();
+
+                if (!otp || otp.length !== 6) {
+                    showMessage('Please enter a valid 6-digit OTP', 'error');
+                    return;
+                }
+
+                if (!password || password.length < 8) {
+                    showMessage('Password must be at least 8 characters', 'error');
+                    return;
+                }
+
+                $.ajax({
+                    url: '<?php echo admin_url( 'admin-ajax.php' ); ?>',
+                    type: 'POST',
+                    data: {
+                        action: 'aurora_confirm_password_reset',
+                        nonce: nonce,
+                        email: email,
+                        otp: otp,
+                        new_password: password
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            showMessage('Password reset successfully! Redirecting...', 'success');
+                            setTimeout(() => window.location.href = '<?php echo wc_get_page_permalink( 'myaccount' ); ?>', 2000);
+                        } else {
+                            showMessage(response.data.message, 'error');
+                        }
+                    }
+                });
+            });
+
+            $('#skip-reset').on('click', function() {
+                $('#aurora-forgot-form').hide();
+                $('#reset-otp-section').hide();
+                $('#aurora-login-form').show();
+                $('#forgot-password-toggle').show();
+            });
+
+            function showMessage(message, type) {
+                const $message = $('<div class="message ' + type + '">' + message + '</div>');
+                $('#aurora-login-form').before($message);
+                if (type !== 'error') {
+                    setTimeout(() => $message.fadeOut(() => $message.remove()), 3000);
+                }
+            }
+        });
+    </script>
     <?php
     return ob_get_clean();
 }
