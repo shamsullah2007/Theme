@@ -510,9 +510,10 @@ function aurora_bulk_product_form() {
         let categoriesData = <?php echo json_encode( aurora_get_categories_data() ); ?>;
 
         // Handle image selection
-        $('#bulk-image-input').on('change', function(e) {
+        $('#bulk-image-input').on('change', function() {
             productData = {};
-            let files = this.files;
+            selectedImageIndex = -1;
+            const files = this.files;
 
             // Limit to 10 images
             if (files.length > 10) {
@@ -533,36 +534,41 @@ function aurora_bulk_product_form() {
                 };
             }
 
-            // Preview images
-            $('#image-preview-container').html('');
+            // Build thumbnails once and render (order-safe)
             let previewHTML = '<div class="thumbnails-row">';
+            let loadedCount = 0;
+            const totalFiles = files.length;
+            const thumbBuffers = new Array(totalFiles).fill('');
 
             for (let index = 0; index < files.length; index++) {
-                let file = files[index];
-                if (file.type.startsWith('image/')) {
-                    let reader = new FileReader();
-                    reader.onload = function(e) {
-                        // Add thumbnail
-                        let thumbHTML = '<div class="thumbnail-item" data-index="' + index + '">' +
-                            '<img src="' + e.target.result + '" alt="Product ' + (index + 1) + '" />' +
-                            '<span class="thumb-label">Pic ' + (index + 1) + '</span>' +
-                            '</div>';
-
-                        $('#image-preview-container').append(thumbHTML);
-                    };
-                    reader.readAsDataURL(file);
+                const file = files[index];
+                if (!file.type.startsWith('image/')) {
+                    loadedCount++;
+                    continue;
                 }
-            }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    thumbBuffers[index] = '<div class="thumbnail-item" data-index="' + index + '">' +
+                        '<img src="' + e.target.result + '" alt="Product ' + (index + 1) + '" />' +
+                        '<span class="thumb-label">Pic ' + (index + 1) + '</span>' +
+                        '</div>';
 
-            // Click handler for thumbnails
-            setTimeout(function() {
-                $(document).on('click', '.thumbnail-item', function() {
-                    selectedImageIndex = parseInt($(this).data('index'));
-                    $('.thumbnail-item').removeClass('active');
-                    $(this).addClass('active');
-                    renderProductForm(selectedImageIndex);
-                });
-            }, 100);
+                    loadedCount++;
+                    if (loadedCount === totalFiles) {
+                        previewHTML += thumbBuffers.join('') + '</div>';
+                        $('#image-preview-container').html(previewHTML);
+
+                        // Bind click after thumbnails exist
+                        $('.thumbnail-item').off('click').on('click', function() {
+                            selectedImageIndex = parseInt($(this).data('index'));
+                            $('.thumbnail-item').removeClass('active');
+                            $(this).addClass('active');
+                            renderProductForm(selectedImageIndex);
+                        });
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
 
             $('#submit-bulk-products-btn').prop('disabled', false);
         });
