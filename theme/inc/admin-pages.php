@@ -649,5 +649,3 @@ function aurora_get_categories_data() {
     }
     return $html;
 }
-    <?php
-}
