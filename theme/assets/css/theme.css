@@ -370,6 +370,42 @@
     transform: scaleX(1);
 }
 
+/* Hide admin-only menu items for customers */
+.primary-nav .menu-item a[href*="login"],
+.primary-nav .menu-item a[href*="register"],
+.primary-nav .menu-item a[href*="product-manager"],
+.primary-nav .menu-item a[href*="product_manager"],
+.primary-nav .menu-item a[href*="order-management"],
+.primary-nav .menu-item a[href*="order_management"],
+.primary-nav .menu-item a[href*="order-manager"],
+.primary-nav .menu-item a[href*="productmanger"],
+.primary-nav .menu-item a[href*="product%20manger"],
+.primary-nav .menu-item a[href*="product%20mangment"],
+.primary-nav .menu-item a[href*="sample-page"] {
+    display: none;
+}
+
+.primary-nav .menu-item a[href*="order%20managment"],
+.primary-nav .menu-item a[href*="ordermangment"],
+.primary-nav .menu-item a[href*="order%20mangment"],
+
+.primary-nav .menu-item:has(> a[href*="login"]),
+.primary-nav .menu-item:has(> a[href*="register"]),
+.primary-nav .menu-item:has(> a[href*="product-manager"]),
+.primary-nav .menu-item:has(> a[href*="product_manager"]),
+.primary-nav .menu-item:has(> a[href*="order-management"]),
+.primary-nav .menu-item:has(> a[href*="order_management"]),
+.primary-nav .menu-item:has(> a[href*="order-manager"]),
+.primary-nav .menu-item:has(> a[href*="productmanger"]),
+.primary-nav .menu-item:has(> a[href*="product%20manger"]),
+.primary-nav .menu-item:has(> a[href*="product%20mangment"]),
+.primary-nav .menu-item:has(> a[href*="sample-page"]) {
+    display: none;
+}
+
+.primary-nav .menu-item:has(> a[href*="order%20managment"]),
+.primary-nav .menu-item:has(> a[href*="ordermangment"]),
+.primary-nav .menu-item:has(> a[href*="order%20mangment"]),
 /* Page Navigation Button Container */
 .page-nav-buttons {
     display: flex;

@@ -48,69 +48,115 @@ function aurora_setup() {
 }
 
 // Hide admin-only menu items for non-admin customers
-add_filter( 'wp_nav_menu_items', 'aurora_filter_menu_items', 10, 2 );
-function aurora_filter_menu_items( $items, $args ) {
+add_filter( 'wp_nav_menu_objects', 'aurora_filter_menu_objects', 10, 2 );
+function aurora_filter_menu_objects( $items, $args ) {
     // Only filter the primary menu
     if ( $args->theme_location !== 'primary' ) {
         return $items;
     }
     
-    // Allow admin users to see all items
-    if ( is_user_logged_in() && ( current_user_can( 'manage_woocommerce' ) || current_user_can( 'manage_options' ) ) ) {
+    // Check if user is admin
+    $is_admin = is_user_logged_in() && ( current_user_can( 'manage_woocommerce' ) || current_user_can( 'manage_options' ) );
+    
+    // If admin, show all items
+    if ( $is_admin ) {
         return $items;
     }
     
-    // For customers, hide admin-only pages
-    $admin_page_names = array(
-        'Login',
-        'Register',
-        'Product Manager',
-        'Order Management',
-        'Sample Page'
-    );
+    // For non-admin users (customers and guests), filter out admin pages
+    $filtered = array();
     
-    // Parse menu items
-    $doc = new DOMDocument();
-    libxml_use_internal_errors( true );
-    $doc->loadHTML( '<?xml encoding="UTF-8">' . $items );
-    libxml_clear_errors();
-    
-    $xpath = new DOMXPath( $doc );
-    $nodes_to_remove = array();
-    
-    // Find and mark items for removal
-    foreach ( $xpath->query( '//a' ) as $link ) {
-        $text = trim( $link->textContent );
+    foreach ( $items as $item ) {
+        $should_hide = false;
         
-        foreach ( $admin_page_names as $page_name ) {
-            if ( stripos( $text, $page_name ) !== false ) {
-                // Get the parent list item
-                $parent = $link->parentNode;
-                while ( $parent && $parent->nodeName !== 'li' ) {
-                    $parent = $parent->parentNode;
+        // Check page title
+        $item_title = strtolower( trim( $item->title ) );
+        if ( in_array( $item_title, array( 'login', 'register', 'product manager', 'order management', 'order managment', 'sample page', 'productmanger' ) ) ) {
+            $should_hide = true;
+        }
+        
+        // Check URL slug
+        if ( ! $should_hide && isset( $item->url ) ) {
+            $url = strtolower( $item->url );
+            $hide_patterns = array(
+                'login',
+                'register',
+                'product-manager',
+                'product_manager',
+                'order-management',
+                'order_management',
+                'order-manager',
+                'order_manager',
+                'sample-page',
+                'productmanger'
+            );
+            
+            foreach ( $hide_patterns as $pattern ) {
+                if ( strpos( $url, $pattern ) !== false ) {
+                    $should_hide = true;
+                    break;
                 }
-                if ( $parent ) {
-                    $nodes_to_remove[] = $parent;
-                }
-                break;
             }
+        }
+        
+        if ( ! $should_hide ) {
+            $filtered[] = $item;
         }
     }
     
-    // Remove marked items
-    foreach ( $nodes_to_remove as $node ) {
-        $node->parentNode->removeChild( $node );
+    return $filtered;
+}
+
+// Custom Menu Walker to hide admin pages from customers
+class Aurora_Menu_Walker extends Walker_Nav_Menu {
+    function start_el( &$output, $item, $depth = 0, $args = null, $id = 0 ) {
+        // List of admin pages to hide (include common typos/variants)
+        $admin_pages = array(
+            'login',
+            'register',
+            'product-manager', 'product_manager', 'productmanger', 'product manger', 'productmangment',
+            'order-management', 'order_management', 'order-manager', 'order_manager', 'order managment', 'ordermangment', 'order mangment',
+            'sample-page'
+        );
+
+        $should_hide = false;
+
+        // Check URL
+        $item_url   = isset( $item->url ) ? strtolower( $item->url ) : '';
+        foreach ( $admin_pages as $page ) {
+            if ( strpos( $item_url, $page ) !== false ) {
+                $should_hide = true;
+                break;
+            }
+        }
+
+        // Check linked page slug if available
+        if ( ! $should_hide && ! empty( $item->object_id ) ) {
+            $linked_post = get_post( $item->object_id );
+            if ( $linked_post && in_array( strtolower( $linked_post->post_name ), $admin_pages, true ) ) {
+                $should_hide = true;
+            }
+        }
+
+        // Check title text
+        if ( ! $should_hide ) {
+            $item_title = strtolower( trim( $item->title ) );
+            foreach ( $admin_pages as $page ) {
+                if ( strpos( $item_title, $page ) !== false ) {
+                    $should_hide = true;
+                    break;
+                }
+            }
+        }
+
+        // Skip rendering this item if it should be hidden
+        if ( $should_hide ) {
+            return;
+        }
+
+        // Otherwise, render it normally
+        parent::start_el( $output, $item, $depth, $args, $id );
     }
-    
-    // Get HTML without the XML declaration and body tags
-    $html = $doc->saveHTML();
-    $html = str_replace( '<?xml encoding="UTF-8"?>', '', $html );
-    $html = str_replace( '<body>', '', $html );
-    $html = str_replace( '</body>', '', $html );
-    $html = str_replace( '<html>', '', $html );
-    $html = str_replace( '</html>', '', $html );
-    
-    return trim( $html );
 }
 
 add_action( 'widgets_init', 'aurora_widgets_init' );
@@ -355,9 +401,23 @@ function aurora_primary_menu_fallback() {
         return;
     }
 
+    $is_admin = is_user_logged_in() && ( current_user_can( 'manage_woocommerce' ) || current_user_can( 'manage_options' ) );
+    $hide_slugs = [
+        'login', 'register', 'registration',
+        'product-manager', 'product_manager', 'productmanger', 'product-manger', 'product-mangment',
+        'order-management', 'order_manager', 'order-manager', 'order-managment', 'order-mangment', 'ordermangment',
+        'sample-page'
+    ];
+
     $current_post_id = get_queried_object_id();
     echo '<ul class="menu menu-primary">';
     foreach ( $pages as $page ) {
+        if ( ! $is_admin ) {
+            $slug = strtolower( $page->post_name );
+            if ( in_array( $slug, $hide_slugs, true ) ) {
+                continue;
+            }
+        }
         $active_class = ( $current_post_id === $page->ID ) ? 'current-menu-item' : '';
         printf(
             '<li class="menu-item %1$s"><a href="%2$s">%3$s</a></li>',

@@ -55,12 +55,21 @@
   </div>
   <nav class="primary-nav" aria-label="Primary">
     <?php
-    wp_nav_menu( [
+    // Get menu items and filter for non-admin users
+    $menu_args = [
       'theme_location' => 'primary',
       'menu_class'     => 'menu menu-primary',
       'container'      => false,
       'fallback_cb'    => 'aurora_primary_menu_fallback',
-    ] );
+      'items_wrap'     => '<ul class="%2$s">%3$s</ul>',
+    ];
+    
+    // For non-admin users, filter out admin pages
+    if ( ! is_user_logged_in() || ( ! current_user_can( 'manage_woocommerce' ) && ! current_user_can( 'manage_options' ) ) ) {
+      $menu_args['walker'] = new Aurora_Menu_Walker();
+    }
+    
+    wp_nav_menu( $menu_args );
     ?>
   </nav>
 </header>
