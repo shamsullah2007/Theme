@@ -446,8 +446,8 @@ function aurora_bulk_product_form() {
 
     ?>
     <div class="bulk-product-form-container">
-        <h2><?php esc_html_e( 'Bulk Add Products (Like Facebook Marketplace)', 'aurora' ); ?></h2>
-        <p class="description"><?php esc_html_e( 'Add multiple products at once. Fill in the fields below and click "Add All Products". Images are optional.', 'aurora' ); ?></p>
+        <h2><?php esc_html_e( 'Bulk Add Products (Image Gallery)', 'aurora' ); ?></h2>
+        <p class="description"><?php esc_html_e( 'Upload images first, then click each image to add product details. Fill in Name and Price for each product.', 'aurora' ); ?></p>
 
         <?php if ( $error_message ) : ?>
             <div class="alert alert-danger"><?php echo esc_html( $error_message ); ?></div>
@@ -466,22 +466,36 @@ function aurora_bulk_product_form() {
         <form method="post" id="bulk-product-form" class="bulk-product-form" enctype="multipart/form-data">
             <?php wp_nonce_field( 'aurora_bulk_product_form', 'aurora_bulk_product_nonce' ); ?>
 
-            <div class="bulk-products-container" id="bulk-products-container">
-                <!-- Product entries will be added here -->
-                <div class="product-entry" data-index="0">
-                    <?php aurora_bulk_product_entry( 0 ); ?>
+            <!-- IMAGE UPLOAD SECTION -->
+            <div class="image-upload-section">
+                <h3><?php esc_html_e( 'Step 1: Upload Images', 'aurora' ); ?></h3>
+                <p><?php esc_html_e( 'You can upload up to 10 images at once. Supported formats: JPG, PNG, GIF', 'aurora' ); ?></p>
+                <div class="image-upload-input">
+                    <input type="file" name="product_images[]" id="bulk-image-input" class="form-control" accept="image/*" multiple />
+                    <small><?php esc_html_e( 'Select multiple images using Ctrl+Click or Shift+Click', 'aurora' ); ?></small>
                 </div>
-                <div class="product-entry" data-index="1">
-                    <?php aurora_bulk_product_entry( 1 ); ?>
-                </div>
-                <div class="product-entry" data-index="2">
-                    <?php aurora_bulk_product_entry( 2 ); ?>
+                <div id="image-preview-container" class="image-preview-container">
+                    <!-- Thumbnails will appear here -->
                 </div>
             </div>
 
+            <!-- PRODUCT DETAILS SECTION -->
+            <div class="product-details-section">
+                <h3><?php esc_html_e( 'Step 2: Click Image & Add Details', 'aurora' ); ?></h3>
+                <p><?php esc_html_e( 'Select an image above, then fill in the details below', 'aurora' ); ?></p>
+
+                <div id="product-details-form" class="product-details-form">
+                    <div class="no-image-selected">
+                        <p><?php esc_html_e( '📷 Upload images above and click them to add details', 'aurora' ); ?></p>
+                    </div>
+                </div>
+
+                <!-- Hidden inputs to store form data -->
+                <div id="form-data-container" style="display:none;"></div>
+            </div>
+
             <div class="bulk-form-actions">
-                <button type="button" class="button" id="add-more-products-btn"><?php esc_html_e( '+ Add More Fields', 'aurora' ); ?></button>
-                <button type="submit" class="button button-primary" id="submit-bulk-products-btn"><?php esc_html_e( 'Add All Products', 'aurora' ); ?></button>
+                <button type="submit" class="button button-primary" id="submit-bulk-products-btn"><?php esc_html_e( '✓ Add All Products', 'aurora' ); ?></button>
                 <a href="<?php echo esc_url( add_query_arg( 'action', 'list' ) ); ?>" class="button"><?php esc_html_e( 'Cancel', 'aurora' ); ?></a>
             </div>
         </form>
@@ -489,142 +503,122 @@ function aurora_bulk_product_form() {
 
     <script>
     jQuery(function($) {
-        let productCount = 3;
-        
-        // Get categories for selection
-        const categoriesData = <?php echo json_encode( aurora_get_categories_data() ); ?>;
-        
-        // Add more product fields
-        $('#add-more-products-btn').on('click', function() {
-            const newEntry = `
-                <div class="product-entry" data-index="${productCount}">
-                    ${aurora_get_product_entry_html(productCount, categoriesData)}
-                </div>
-            `;
-            $('#bulk-products-container').append(newEntry);
-            productCount++;
-        });
+        let productImages = [];
+        let selectedImageIndex = -1;
+        let categoriesData = <?php echo json_encode( aurora_get_categories_data() ); ?>;
 
-        // Remove product entry
-        $(document).on('click', '.remove-product-btn', function() {
-            $(this).closest('.product-entry').fadeOut(300, function() {
-                $(this).remove();
+        // Handle image selection
+        $('#bulk-image-input').on('change', function(e) {
+            productImages = [];
+            let files = this.files;
+
+            // Limit to 10 images
+            if (files.length > 10) {
+                alert('<?php esc_attr_e( 'Maximum 10 images allowed', 'aurora' ); ?>');
+                return;
+            }
+
+            // Preview images
+            $('#image-preview-container').empty();
+            let previewHTML = '<div class="thumbnails-row">';
+
+            $.each(files, function(index, file) {
+                if (file.type.startsWith('image/')) {
+                    let reader = new FileReader();
+                    reader.onload = function(e) {
+                        productImages[index] = {
+                            file: file,
+                            preview: e.target.result,
+                            index: index
+                        };
+
+                        // Add thumbnail
+                        let thumbHTML = '<div class="thumbnail-item" data-index="' + index + '">' +
+                            '<img src="' + e.target.result + '" alt="Product ' + (index + 1) + '" />' +
+                            '<span class="thumb-label">Pic ' + (index + 1) + '</span>' +
+                            '</div>';
+
+                        $('#image-preview-container .thumbnails-row').append(thumbHTML);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            previewHTML += '</div>';
+            $('#image-preview-container').html(previewHTML);
+
+            // Click handler for thumbnails
+            $(document).on('click', '.thumbnail-item', function() {
+                selectedImageIndex = $(this).data('index');
+                $('.thumbnail-item').removeClass('active');
+                $(this).addClass('active');
+                renderProductForm(selectedImageIndex);
             });
         });
-    });
 
-    function aurora_get_product_entry_html(index, categories) {
-        let html = `
-            <div class="product-entry-header">
-                <h3>Product #${index + 1}</h3>
-                <button type="button" class="remove-product-btn">✕ Remove</button>
-            </div>
-            <div class="form-group">
-                <label>Product Name *</label>
-                <input type="text" name="product_names[]" class="form-control" required />
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Price *</label>
-                    <input type="number" name="product_prices[]" class="form-control" step="0.01" required />
-                </div>
-                <div class="form-group">
-                    <label>Stock Quantity *</label>
-                    <input type="number" name="product_stocks[]" class="form-control" value="0" required />
-                </div>
-                <div class="form-group">
-                    <label>SKU</label>
-                    <input type="text" name="product_skus[]" class="form-control" />
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Categories</label>
-                <select name="products_categories[${index}][]" class="form-control" multiple size="4">
-                    ${categories}
-                </select>
-                <small>Hold Ctrl (Cmd on Mac) to select multiple</small>
-            </div>
-            <div class="form-group">
-                <label>Description</label>
-                <textarea name="product_descs[]" class="form-control" rows="3"></textarea>
-            </div>
-            <div class="form-group">
-                <label>Product Image</label>
-                <input type="file" name="product_images[]" class="form-control" accept="image/*" />
-                <small>JPG, PNG, GIF (optional)</small>
-            </div>
-        `;
-        return html;
-    }
+        // Render product details form
+        function renderProductForm(index) {
+            if (index < 0 || !productImages[index]) return;
+
+            let formHTML = '<div class="product-form-wrapper">' +
+                '<div class="form-image-display">' +
+                '<img src="' + productImages[index].preview + '" alt="Product ' + (index + 1) + '" />' +
+                '</div>' +
+                '<div class="form-inputs">' +
+                '<div class="form-group">' +
+                '<label>Product Name *</label>' +
+                '<input type="text" name="product_names[]" class="form-control product-name-input" required />' +
+                '</div>' +
+
+                '<div class="form-row">' +
+                '<div class="form-group">' +
+                '<label>Price *</label>' +
+                '<input type="number" name="product_prices[]" class="form-control product-price-input" step="0.01" required />' +
+                '</div>' +
+                '<div class="form-group">' +
+                '<label>Stock</label>' +
+                '<input type="number" name="product_stocks[]" class="form-control product-stock-input" value="0" />' +
+                '</div>' +
+                '<div class="form-group">' +
+                '<label>SKU</label>' +
+                '<input type="text" name="product_skus[]" class="form-control product-sku-input" />' +
+                '</div>' +
+                '</div>' +
+
+                '<div class="form-group">' +
+                '<label>Categories</label>' +
+                '<select name="products_categories[' + index + '][]" class="form-control" multiple size="4">' +
+                categoriesData +
+                '</select>' +
+                '<small>Hold Ctrl (Cmd on Mac) for multiple</small>' +
+                '</div>' +
+
+                '<div class="form-group">' +
+                '<label>Description</label>' +
+                '<textarea name="product_descs[]" class="form-control product-desc-input" rows="4"></textarea>' +
+                '</div>' +
+                '</div>' +
+                '</div>';
+
+            $('#product-details-form').html(formHTML);
+        }
+
+        // Auto-generate SKU from name
+        $(document).on('input', '.product-name-input', function() {
+            if (!$('.product-sku-input').val()) {
+                let sku = $(this).val().toUpperCase().replace(/\s+/g, '-').substring(0, 20);
+                $('.product-sku-input').val(sku);
+            }
+        });
+
+        // Hide submit button if no images selected
+        $('#submit-bulk-products-btn').prop('disabled', true);
+        $(document).on('change', '#bulk-image-input', function() {
+            $('#submit-bulk-products-btn').prop('disabled', this.files.length === 0);
+        });
+    });
     </script>
 
-    <?php
-}
-
-function aurora_bulk_product_entry( $index ) {
-    $categories = get_terms( array(
-        'taxonomy'   => 'product_cat',
-        'hide_empty' => false,
-    ) );
-    ?>
-    <div class="product-entry-header">
-        <h3><?php printf( esc_html__( 'Product #%d', 'aurora' ), $index + 1 ); ?></h3>
-        <?php if ( $index > 0 ) : ?>
-            <button type="button" class="remove-product-btn"><?php esc_html_e( '✕ Remove', 'aurora' ); ?></button>
-        <?php endif; ?>
-    </div>
-
-    <div class="form-group">
-        <label><?php esc_html_e( 'Product Name *', 'aurora' ); ?></label>
-        <input type="text" name="product_names[]" class="form-control" required />
-    </div>
-
-    <div class="form-row">
-        <div class="form-group">
-            <label><?php esc_html_e( 'Price *', 'aurora' ); ?></label>
-            <input type="number" name="product_prices[]" class="form-control" step="0.01" required />
-        </div>
-        <div class="form-group">
-            <label><?php esc_html_e( 'Stock Quantity *', 'aurora' ); ?></label>
-            <input type="number" name="product_stocks[]" class="form-control" value="0" required />
-        </div>
-        <div class="form-group">
-            <label><?php esc_html_e( 'SKU', 'aurora' ); ?></label>
-            <input type="text" name="product_skus[]" class="form-control" />
-        </div>
-    </div>
-
-    <div class="form-group">
-        <label><?php esc_html_e( 'Categories', 'aurora' ); ?></label>
-        <select name="products_categories[<?php echo $index; ?>][]" class="form-control" multiple size="4">
-            <?php
-            if ( ! empty( $categories ) && ! is_wp_error( $categories ) ) {
-                foreach ( $categories as $category ) {
-                    $category_color = get_term_meta( $category->term_id, 'aurora_category_color', true );
-                    $category_color = $category_color ? $category_color : '#0b57d0';
-                    printf(
-                        '<option value="%d" data-color="%s">%s</option>',
-                        $category->term_id,
-                        esc_attr( $category_color ),
-                        esc_html( $category->name )
-                    );
-                }
-            }
-            ?>
-        </select>
-        <small><?php esc_html_e( 'Hold Ctrl (Cmd on Mac) to select multiple', 'aurora' ); ?></small>
-    </div>
-
-    <div class="form-group">
-        <label><?php esc_html_e( 'Description', 'aurora' ); ?></label>
-        <textarea name="product_descs[]" class="form-control" rows="3"></textarea>
-    </div>
-
-    <div class="form-group">
-        <label><?php esc_html_e( 'Product Image', 'aurora' ); ?></label>
-        <input type="file" name="product_images[]" class="form-control" accept="image/*" />
-        <small><?php esc_html_e( 'JPG, PNG, GIF (optional)', 'aurora' ); ?></small>
-    </div>
     <?php
 }
 
