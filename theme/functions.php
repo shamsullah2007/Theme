@@ -47,6 +47,72 @@ function aurora_setup() {
     ] );
 }
 
+// Hide admin-only menu items for non-admin customers
+add_filter( 'wp_nav_menu_items', 'aurora_filter_menu_items', 10, 2 );
+function aurora_filter_menu_items( $items, $args ) {
+    // Only filter the primary menu
+    if ( $args->theme_location !== 'primary' ) {
+        return $items;
+    }
+    
+    // Allow admin users to see all items
+    if ( is_user_logged_in() && ( current_user_can( 'manage_woocommerce' ) || current_user_can( 'manage_options' ) ) ) {
+        return $items;
+    }
+    
+    // For customers, hide admin-only pages
+    $admin_page_names = array(
+        'Login',
+        'Register',
+        'Product Manager',
+        'Order Management',
+        'Sample Page'
+    );
+    
+    // Parse menu items
+    $doc = new DOMDocument();
+    libxml_use_internal_errors( true );
+    $doc->loadHTML( '<?xml encoding="UTF-8">' . $items );
+    libxml_clear_errors();
+    
+    $xpath = new DOMXPath( $doc );
+    $nodes_to_remove = array();
+    
+    // Find and mark items for removal
+    foreach ( $xpath->query( '//a' ) as $link ) {
+        $text = trim( $link->textContent );
+        
+        foreach ( $admin_page_names as $page_name ) {
+            if ( stripos( $text, $page_name ) !== false ) {
+                // Get the parent list item
+                $parent = $link->parentNode;
+                while ( $parent && $parent->nodeName !== 'li' ) {
+                    $parent = $parent->parentNode;
+                }
+                if ( $parent ) {
+                    $nodes_to_remove[] = $parent;
+                }
+                break;
+            }
+        }
+    }
+    
+    // Remove marked items
+    foreach ( $nodes_to_remove as $node ) {
+        $node->parentNode->removeChild( $node );
+    }
+    
+    // Get HTML without the XML declaration and body tags
+    $html = $doc->saveHTML();
+    $html = str_replace( '<?xml encoding="UTF-8"?>', '', $html );
+    $html = str_replace( '<body>', '', $html );
+    $html = str_replace( '</body>', '', $html );
+    $html = str_replace( '<html>', '', $html );
+    $html = str_replace( '</html>', '', $html );
+    
+    return trim( $html );
+}
+
 add_action( 'widgets_init', 'aurora_widgets_init' );
 function aurora_widgets_init() {
     register_sidebar( [
