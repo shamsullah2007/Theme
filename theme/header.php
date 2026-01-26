@@ -34,8 +34,8 @@
       </form>
     </div>
     <div class="header-actions">
-      <a class="account-link" href="<?php echo esc_url( wc_get_page_permalink( 'myaccount' ) ); ?>"><?php esc_html_e( 'Account', 'aurora' ); ?></a>
-      <a class="cart-link" href="<?php echo esc_url( wc_get_cart_url() ); ?>">
+      <a class=\"account-link\" href=\"<?php echo esc_url( wc_get_page_permalink( 'myaccount' ) ); ?>\" title=\"<?php esc_attr_e( 'My Account', 'aurora' ); ?>\"><?php esc_html_e( 'Account', 'aurora' ); ?></a>
+      <a class=\"cart-link\" href=\"<?php echo esc_url( wc_get_cart_url() ); ?>\" title=\"<?php esc_attr_e( 'Shopping Cart', 'aurora' ); ?>\">
         <span class="cart-icon">🛒</span>
         <span class="aurora-cart-count"><?php echo WC()->cart ? intval( WC()->cart->get_cart_contents_count() ) : 0; ?></span>
       </a>

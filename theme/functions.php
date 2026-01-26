@@ -168,6 +168,56 @@ function aurora_header_cart_count( $fragments ) {
     return $fragments;
 }
 
+// Automatically add published pages to primary menu
+add_filter( 'wp_nav_menu_items', 'aurora_add_pages_to_menu', 10, 2 );
+function aurora_add_pages_to_menu( $items, $args ) {
+    // Only add to primary menu and if there's no custom menu assigned
+    if ( 'primary' === $args->theme_location ) {
+        $pages = get_pages( array(
+            'post_status' => 'publish',
+            'orderby'     => 'post_title',
+            'sort_column' => 'post_title',
+            'exclude'     => array( get_option( 'page_on_front' ), get_option( 'page_for_posts' ) ),
+        ) );
+
+        if ( ! empty( $pages ) ) {
+            $current_post_id = get_queried_object_id();
+            foreach ( $pages as $page ) {
+                $active_class = ( $current_post_id === $page->ID ) ? 'current-menu-item' : '';
+                $items .= sprintf(
+                    '<li class="menu-item %s"><a href="%s">%s</a></li>',
+                    $active_class,
+                    esc_url( get_permalink( $page->ID ) ),
+                    esc_html( $page->post_title )
+                );
+            }
+        }
+    }
+    return $items;
+}
+
+// Enhance checkout form styling with CSS classes
+add_filter( 'woocommerce_checkout_fields', 'aurora_checkout_fields_wrapper' );
+function aurora_checkout_fields_wrapper( $fields ) {
+    foreach ( $fields as $section => $field_group ) {
+        if ( is_array( $field_group ) ) {
+            foreach ( $field_group as $key => $field ) {
+                $fields[ $section ][ $key ]['class'][] = 'aurora-checkout-field';
+            }
+        }
+    }
+    return $fields;
+}
+
+// Add custom body class for checkout page
+add_filter( 'body_class', 'aurora_checkout_body_class' );
+function aurora_checkout_body_class( $classes ) {
+    if ( is_checkout() ) {
+        $classes[] = 'aurora-checkout-page';
+    }
+    return $classes;
+}
+
 // Elementor compatibility: allow all WP elements.
 add_action( 'elementor/theme/register_locations', function( $elementor_theme_manager ) {
     $elementor_theme_manager->register_all_core_location();
