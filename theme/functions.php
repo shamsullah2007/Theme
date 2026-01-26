@@ -218,6 +218,96 @@ function aurora_checkout_body_class( $classes ) {
     return $classes;
 }
 
+// Category Color Management
+add_action( 'product_cat_edit_form_fields', 'aurora_category_color_field', 10, 2 );
+function aurora_category_color_field( $term, $taxonomy ) {
+    $color = get_term_meta( $term->term_id, 'aurora_category_color', true );
+    $color = $color ? $color : '#0b57d0';
+    ?>
+    <tr class="form-field">
+        <th scope="row"><label for="aurora_category_color"><?php esc_html_e( 'Category Color', 'aurora' ); ?></label></th>
+        <td>
+            <input type="color" id="aurora_category_color" name="aurora_category_color" value="<?php echo esc_attr( $color ); ?>" />
+            <p class="description"><?php esc_html_e( 'Choose a color for this category heading', 'aurora' ); ?></p>
+        </td>
+    </tr>
+    <?php
+}
+
+add_action( 'edited_product_cat', 'aurora_save_category_color', 10, 2 );
+function aurora_save_category_color( $term_id, $tt_id ) {
+    if ( isset( $_POST['aurora_category_color'] ) ) {
+        update_term_meta( $term_id, 'aurora_category_color', sanitize_hex_color( $_POST['aurora_category_color'] ) );
+    }
+}
+
+add_action( 'create_product_cat', 'aurora_create_category_color', 10, 2 );
+function aurora_create_category_color( $term_id, $tt_id ) {
+    if ( isset( $_POST['aurora_category_color'] ) ) {
+        add_term_meta( $term_id, 'aurora_category_color', sanitize_hex_color( $_POST['aurora_category_color'] ) );
+    }
+}
+
+// Add category color field to add category form
+add_action( 'product_cat_add_form_fields', 'aurora_category_color_add_field' );
+function aurora_category_color_add_field() {
+    ?>
+    <div class="form-field">
+        <label for="aurora_category_color"><?php esc_html_e( 'Category Color', 'aurora' ); ?></label>
+        <input type="color" id="aurora_category_color" name="aurora_category_color" value="#0b57d0" />
+        <p class="description"><?php esc_html_e( 'Choose a color for this category heading', 'aurora' ); ?></p>
+    </div>
+    <?php
+}
+
+// Apply category color to product titles
+add_filter( 'woocommerce_product_title', 'aurora_apply_category_color_to_title', 10, 2 );
+function aurora_apply_category_color_to_title( $title, $product_id ) {
+    if ( is_admin() ) {
+        return $title;
+    }
+
+    $product = wc_get_product( $product_id );
+    if ( ! $product ) {
+        return $title;
+    }
+
+    $categories = $product->get_category_ids();
+    if ( ! empty( $categories ) ) {
+        $primary_cat_id = $categories[0];
+        $color = get_term_meta( $primary_cat_id, 'aurora_category_color', true );
+        if ( $color ) {
+            return '<span style="color: ' . esc_attr( $color ) . '; font-weight: 700;">' . $title . '</span>';
+        }
+    }
+
+    return $title;
+}
+
+// Apply category colors to single product page
+add_filter( 'the_title', 'aurora_apply_category_color_single_product', 10, 2 );
+function aurora_apply_category_color_single_product( $title, $post_id ) {
+    if ( is_admin() || ! is_singular( 'product' ) ) {
+        return $title;
+    }
+
+    $product = wc_get_product( $post_id );
+    if ( ! $product ) {
+        return $title;
+    }
+
+    $categories = $product->get_category_ids();
+    if ( ! empty( $categories ) ) {
+        $primary_cat_id = $categories[0];
+        $color = get_term_meta( $primary_cat_id, 'aurora_category_color', true );
+        if ( $color ) {
+            return '<span style="color: ' . esc_attr( $color ) . '; font-weight: 700;">' . $title . '</span>';
+        }
+    }
+
+    return $title;
+}
+
 // Elementor compatibility: allow all WP elements.
 add_action( 'elementor/theme/register_locations', function( $elementor_theme_manager ) {
     $elementor_theme_manager->register_all_core_location();

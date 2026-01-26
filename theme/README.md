@@ -1,6 +1,29 @@
 # Aurora Storefront
 A clean, responsive WooCommerce-ready WordPress theme inspired by modern marketplaces. Built for fast setup, mega navigation, product highlights, and customizable homepage sections—with beautiful animations and engaging UI effects.
 
+## Product Management & Categories
+
+### Category Management
+Each product category can have its own custom color:
+1. Go to WordPress Admin → Products → Categories
+2. Edit or create a category
+3. Find the "Category Color" field and select a color
+4. Save the category
+5. All products in that category will display titles in that color!
+
+### Admin Product Form
+When adding or editing products:
+- **Categories field**: Multi-select dropdown showing all categories with color indicators
+- Hold Ctrl (Cmd on Mac) to select multiple categories
+- Selected categories appear with blue gradient background
+- Category colors automatically display on product headings in the store
+
+### Category Color Display
+- Product titles in the shop show in their primary category's color
+- Single product page title displays in the category color
+- Category colors help customers quickly identify product types
+- Colors are consistent across the entire store
+
 ## Features
 - **Smooth Animations**: Fade-in, slide-in, and scale animations on page load and scroll
 - **Interactive UI**: Hover effects, ripple buttons, hover cards with elevation

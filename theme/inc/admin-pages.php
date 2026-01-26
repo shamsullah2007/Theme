@@ -245,7 +245,7 @@ function aurora_product_form( $product_id = 0 ) {
         </div>
         <div class="form-group">
             <label for="product_categories"><?php esc_html_e( 'Categories', 'aurora' ); ?></label>
-            <select name="product_categories[]" id="product_categories" class="form-control" multiple size="5">
+            <select name="product_categories[]" id="product_categories" class="form-control aurora-category-select" multiple size="5">
                 <?php
                 $categories = get_terms( array(
                     'taxonomy'   => 'product_cat',
@@ -254,17 +254,21 @@ function aurora_product_form( $product_id = 0 ) {
                 $selected_categories = $product ? $product->get_category_ids() : array();
                 if ( ! empty( $categories ) && ! is_wp_error( $categories ) ) {
                     foreach ( $categories as $category ) {
+                        $category_color = get_term_meta( $category->term_id, 'aurora_category_color', true );
+                        $category_color = $category_color ? $category_color : '#0b57d0';
+                        $style = 'style="border-left: 4px solid ' . esc_attr( $category_color ) . ';"';
                         printf(
-                            '<option value="%d" %s>%s</option>',
+                            '<option value="%d" %s data-color="%s">%s</option>',
                             $category->term_id,
                             in_array( $category->term_id, $selected_categories ) ? 'selected' : '',
+                            esc_attr( $category_color ),
                             esc_html( $category->name )
                         );
                     }
                 }
                 ?>
             </select>
-            <small><?php esc_html_e( 'Hold Ctrl (Cmd on Mac) to select multiple categories', 'aurora' ); ?></small>
+            <small><?php esc_html_e( 'Hold Ctrl (Cmd on Mac) to select multiple categories. Colors are automatically assigned to each category.', 'aurora' ); ?></small>
         </div>
         <div class="form-group">
             <label for="product_image"><?php esc_html_e( 'Product Image', 'aurora' ); ?></label>

@@ -158,14 +158,22 @@
 }
 
 .form-group select[multiple] option {
-    padding: 6px 8px;
-    border-radius: 4px;
+    padding: 8px 12px;
+    border-left: 4px solid #0b57d0;
     margin-bottom: 2px;
+    border-radius: 0;
 }
 
 .form-group select[multiple] option:checked {
     background: linear-gradient(135deg, var(--aurora-primary) 0%, var(--aurora-primary-dark) 100%);
     color: #ffffff;
+    border-left-color: #ff6b6b;
+}
+
+/* Category color selector styling */
+.aurora-category-select option {
+    border-left: 4px solid !important;
+    padding-left: 12px;
 }
 
 .form-group small {

@@ -20,7 +20,7 @@
       <form role="search" method="get" class="search-form" action="<?php echo esc_url( home_url( '/' ) ); ?>">
         <label class="screen-reader-text" for="aurora-search">Search for:</label>
         <select name="product_cat" class="search-category">
-          <option value=""><?php esc_html_e( 'All Departments', 'aurora' ); ?></option>
+          <option value=""><?php esc_html_e( 'All Categories', 'aurora' ); ?></option>
           <?php
           $cats = get_terms( [ 'taxonomy' => 'product_cat', 'hide_empty' => true ] );
           foreach ( $cats as $cat ) {
