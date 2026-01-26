@@ -748,7 +748,8 @@ function aurora_order_manager_shortcode() {
                 <?php
                 $processing = wc_orders_count( 'processing' );
                 $pending = wc_orders_count( 'pending' );
-                $completed = wc_orders_count( 'completed' );
+                $packed = wc_orders_count( 'packed' );
+                $shipped = wc_orders_count( 'shipped' );
                 ?>
                 <div class="stat-card">
                     <span class="stat-number"><?php echo esc_html( $pending ); ?></span>
@@ -759,20 +760,23 @@ function aurora_order_manager_shortcode() {
                     <span class="stat-label"><?php esc_html_e( 'Processing', 'aurora' ); ?></span>
                 </div>
                 <div class="stat-card">
-                    <span class="stat-number"><?php echo esc_html( $completed ); ?></span>
-                    <span class="stat-label"><?php esc_html_e( 'Completed', 'aurora' ); ?></span>
+                    <span class="stat-number"><?php echo esc_html( $packed ); ?></span>
+                    <span class="stat-label"><?php esc_html_e( 'Packed', 'aurora' ); ?></span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-number"><?php echo esc_html( $shipped ); ?></span>
+                    <span class="stat-label"><?php esc_html_e( 'Shipped', 'aurora' ); ?></span>
                 </div>
             </div>
         </div>
 
         <div class="order-filters">
             <select id="order-status-filter" class="filter-select">
-                <option value="all"><?php esc_html_e( 'All Orders', 'aurora' ); ?></option>
+                <option value="all"><?php esc_html_e( 'Active Orders', 'aurora' ); ?></option>
                 <option value="pending"><?php esc_html_e( 'Pending Payment', 'aurora' ); ?></option>
                 <option value="processing"><?php esc_html_e( 'Processing', 'aurora' ); ?></option>
                 <option value="packed"><?php esc_html_e( 'Packed', 'aurora' ); ?></option>
                 <option value="shipped"><?php esc_html_e( 'Shipped', 'aurora' ); ?></option>
-                <option value="completed"><?php esc_html_e( 'Completed', 'aurora' ); ?></option>
             </select>
             <input type="text" id="order-search" class="search-input" placeholder="<?php esc_attr_e( 'Search by Order ID or Customer Name...', 'aurora' ); ?>" />
         </div>
@@ -783,6 +787,7 @@ function aurora_order_manager_shortcode() {
                 'limit' => -1,
                 'orderby' => 'date',
                 'order' => 'DESC',
+                'status' => array( 'pending', 'processing', 'on-hold', 'packed', 'shipped' ),
             );
             $orders = wc_get_orders( $args );
 
@@ -1020,4 +1025,67 @@ function aurora_add_custom_order_statuses( $order_statuses ) {
     }
 
     return $new_order_statuses;
+}
+
+// Allow customers to cancel orders before shipped
+add_filter( 'woocommerce_valid_order_statuses_for_cancel', 'aurora_valid_order_statuses_for_cancel', 10, 2 );
+function aurora_valid_order_statuses_for_cancel( $statuses, $order ) {
+    // Allow cancellation for pending, processing, on-hold, and packed orders
+    // But NOT for shipped, completed, or cancelled orders
+    return array( 'pending', 'processing', 'on-hold', 'packed' );
+}
+
+// Add cancel button to My Account orders page
+add_filter( 'woocommerce_my_account_my_orders_actions', 'aurora_add_cancel_order_action', 10, 2 );
+function aurora_add_cancel_order_action( $actions, $order ) {
+    $order_status = $order->get_status();
+    
+    // Allow cancellation if order is not shipped, completed, or already cancelled
+    if ( in_array( $order_status, array( 'pending', 'processing', 'on-hold', 'packed' ) ) ) {
+        $actions['cancel'] = array(
+            'url'  => $order->get_cancel_order_url( wc_get_page_permalink( 'myaccount' ) ),
+            'name' => __( 'Cancel Order', 'aurora' ),
+        );
+    }
+    
+    return $actions;
+}
+
+// AJAX handler for customer order cancellation
+add_action( 'wp_ajax_aurora_cancel_customer_order', 'aurora_cancel_customer_order_ajax' );
+function aurora_cancel_customer_order_ajax() {
+    check_ajax_referer( 'aurora_cancel_order', 'nonce' );
+    
+    if ( ! is_user_logged_in() ) {
+        wp_send_json_error( array( 'message' => 'You must be logged in to cancel orders.' ) );
+    }
+    
+    $order_id = isset( $_POST['order_id'] ) ? absint( $_POST['order_id'] ) : 0;
+    
+    if ( ! $order_id ) {
+        wp_send_json_error( array( 'message' => 'Invalid order ID.' ) );
+    }
+    
+    $order = wc_get_order( $order_id );
+    if ( ! $order ) {
+        wp_send_json_error( array( 'message' => 'Order not found.' ) );
+    }
+    
+    // Check if user owns the order
+    if ( $order->get_customer_id() != get_current_user_id() ) {
+        wp_send_json_error( array( 'message' => 'You do not have permission to cancel this order.' ) );
+    }
+    
+    // Check if order can be cancelled
+    $order_status = $order->get_status();
+    if ( ! in_array( $order_status, array( 'pending', 'processing', 'on-hold', 'packed' ) ) ) {
+        wp_send_json_error( array( 'message' => 'This order cannot be cancelled. It may have already been shipped.' ) );
+    }
+    
+    // Cancel the order
+    $order->update_status( 'cancelled', __( 'Order cancelled by customer.', 'aurora' ) );
+    
+    wp_send_json_success( array(
+        'message' => 'Order cancelled successfully.'
+    ) );
 }
