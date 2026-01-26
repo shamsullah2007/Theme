@@ -73,8 +73,10 @@
 
 .product-header h1 {
     margin: 0 0 12px;
-    font-size: 24px;
+    font-size: 28px;
     line-height: 1.3;
+    font-weight: 700;
+    color: var(--aurora-text);
 }
 
 .woocommerce-product-rating {
@@ -82,32 +84,52 @@
     align-items: center;
     gap: 8px;
     margin: 12px 0;
+    min-height: 24px;
+}
+
+.woocommerce-product-rating .star-rating {
+    font-size: 15px;
+    color: #ffc107;
 }
 
 .product-price-section {
-    border-top: 1px solid var(--aurora-border);
-    border-bottom: 1px solid var(--aurora-border);
-    padding: 16px 0;
+    background: linear-gradient(135deg, #f8fafc 0%, #f0f5ff 100%);
+    border: 1px solid var(--aurora-border);
+    border-radius: 8px;
+    padding: 20px;
+    margin: 16px 0;
 }
 
 .woocommerce-variation-price {
-    font-size: 28px;
+    font-size: 32px;
     font-weight: 700;
     color: var(--aurora-primary);
     margin: 8px 0;
 }
 
+.woocommerce-price-amount {
+    font-size: 32px;
+}
+
 .woocommerce-variation-availability {
-    margin: 8px 0;
+    margin: 12px 0;
     font-size: 14px;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-radius: 6px;
+    display: inline-block;
 }
 
 .woocommerce-variation-availability.in-stock {
     color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid #10b981;
 }
 
 .woocommerce-variation-availability.out-of-stock {
     color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid #ef4444;
 }
 
 .variations {

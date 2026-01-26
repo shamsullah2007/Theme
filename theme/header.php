@@ -33,8 +33,12 @@
         <button type="submit" class="search-submit"><?php esc_html_e( 'Search', 'aurora' ); ?></button>
       </form>
     </div>
-    <div class="header-actions">
-      <a class=\"account-link\" href=\"<?php echo esc_url( wc_get_page_permalink( 'myaccount' ) ); ?>\" title=\"<?php esc_attr_e( 'My Account', 'aurora' ); ?>\"><?php esc_html_e( 'Account', 'aurora' ); ?></a>
+    <div class="header-actions">      <?php if ( current_user_can( 'manage_woocommerce_products' ) || current_user_can( 'manage_options' ) ) : ?>
+        <a class="add-product-link" href="<?php echo esc_url( aurora_get_product_manager_url( 'add' ) ); ?>" title="<?php esc_attr_e( 'Add Product', 'aurora' ); ?>">
+          <span class="add-icon">+</span>
+          <?php esc_html_e( 'Add Product', 'aurora' ); ?>
+        </a>
+      <?php endif; ?>      <a class=\"account-link\" href=\"<?php echo esc_url( wc_get_page_permalink( 'myaccount' ) ); ?>\" title=\"<?php esc_attr_e( 'My Account', 'aurora' ); ?>\"><?php esc_html_e( 'Account', 'aurora' ); ?></a>
       <a class=\"cart-link\" href=\"<?php echo esc_url( wc_get_cart_url() ); ?>\" title=\"<?php esc_attr_e( 'Shopping Cart', 'aurora' ); ?>\">
         <span class="cart-icon">🛒</span>
         <span class="aurora-cart-count"><?php echo WC()->cart ? intval( WC()->cart->get_cart_contents_count() ) : 0; ?></span>

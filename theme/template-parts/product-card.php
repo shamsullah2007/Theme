@@ -1,6 +1,6 @@
 <?php
 /**
- * Product card partial
+ * Product card partial - Consistent formatting for all product displays
  * @var WC_Product $product
  */
 if ( ! isset( $product ) || ! $product ) {
@@ -10,7 +10,13 @@ if ( ! isset( $product ) || ! $product ) {
 <li class="aurora-product">
   <a href="<?php echo esc_url( get_permalink( $product->get_id() ) ); ?>">
     <div class="thumb">
-      <?php echo $product->get_image( 'aurora-card' ); ?>
+      <?php 
+      if ( $product->get_image_id() ) {
+        echo wp_get_attachment_image( $product->get_image_id(), 'aurora-card' );
+      } else {
+        echo wc_placeholder_img( 'aurora-card' );
+      }
+      ?>
     </div>
     <h3 class="product-title"><?php echo esc_html( $product->get_name() ); ?></h3>
     <div class="price"><?php echo wp_kses_post( $product->get_price_html() ); ?></div>

@@ -308,6 +308,40 @@ function aurora_apply_category_color_single_product( $title, $post_id ) {
     return $title;
 }
 
+// Helper function to get product manager page URL
+function aurora_get_product_manager_url( $action = 'list' ) {
+    // Try to find the page with the product manager shortcode
+    $args = array(
+        'post_type'      => 'page',
+        'post_status'    => 'publish',
+        's'              => 'aurora_admin_product_manager',
+        'posts_per_page' => 1,
+    );
+    
+    $query = new WP_Query( $args );
+    if ( $query->have_posts() ) {
+        $post_id = $query->posts[0]->ID;
+        return add_query_arg( 'action', $action, get_permalink( $post_id ) );
+    }
+    
+    // Fallback: look for admin page
+    $admin_pages = get_pages( array(
+        'meta_key'   => '_wp_page_template',
+        'meta_value' => 'admin%',
+        'post_type'  => 'page',
+    ) );
+    
+    if ( ! empty( $admin_pages ) ) {
+        return add_query_arg( 'action', $action, get_permalink( $admin_pages[0]->ID ) );
+    }
+    
+    // Last fallback: admin dashboard
+    return add_query_arg( array(
+        'page'   => 'aurora_admin_product_manager',
+        'action' => $action,
+    ), admin_url( 'admin.php' ) );
+}
+
 // Elementor compatibility: allow all WP elements.
 add_action( 'elementor/theme/register_locations', function( $elementor_theme_manager ) {
     $elementor_theme_manager->register_all_core_location();
