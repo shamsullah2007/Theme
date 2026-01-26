@@ -1,0 +1,46 @@
+/*
+Theme Name: Aurora Storefront
+Theme URI: https://example.com/aurora-storefront
+Author: Your Name
+Author URI: https://example.com
+Description: A clean, responsive WooCommerce-ready WordPress theme inspired by modern marketplaces. Includes mega navigation, product highlights, faceted search UI, and deep WooCommerce integration.
+Version: 1.0.0
+License: GPL-2.0-or-later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: aurora
+Tags: e-commerce, woocommerce, responsive, accessibility-ready, customizable
+*/
+
+/* This file is intentionally light; main styles live in assets/css/theme.css */
+
+:root {
+    --aurora-bg: #f5f7fb;
+    --aurora-surface: #ffffff;
+    --aurora-primary: #0b57d0;
+    --aurora-primary-dark: #0846a8;
+    --aurora-accent: #fbbc04;
+    --aurora-text: #1f2937;
+    --aurora-muted: #6b7280;
+    --aurora-border: #e5e7eb;
+    --aurora-radius: 10px;
+    --aurora-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    --aurora-font: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+
+body {
+    margin: 0;
+    background: var(--aurora-bg);
+    color: var(--aurora-text);
+    font-family: var(--aurora-font);
+}
+
+.screen-reader-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
