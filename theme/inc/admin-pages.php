@@ -378,13 +378,12 @@ function aurora_bulk_product_form() {
         } else {
             $submitted = true;
             
-            // Get all product entries
+            // Get all product entries from hidden form data
             $product_names = isset( $_POST['product_names'] ) ? (array) $_POST['product_names'] : array();
             $product_prices = isset( $_POST['product_prices'] ) ? (array) $_POST['product_prices'] : array();
             $product_stocks = isset( $_POST['product_stocks'] ) ? (array) $_POST['product_stocks'] : array();
             $product_skus = isset( $_POST['product_skus'] ) ? (array) $_POST['product_skus'] : array();
             $product_descs = isset( $_POST['product_descs'] ) ? (array) $_POST['product_descs'] : array();
-            
             $products_categories = isset( $_POST['products_categories'] ) ? $_POST['products_categories'] : array();
 
             require_once( ABSPATH . 'wp-admin/includes/file.php' );
@@ -414,7 +413,9 @@ function aurora_bulk_product_form() {
                     $new_product->set_description( $product_desc );
                     $new_product->set_regular_price( $product_price );
                     $new_product->set_stock_quantity( $product_stock );
-                    $new_product->set_sku( $product_sku );
+                    if ( ! empty( $product_sku ) ) {
+                        $new_product->set_sku( $product_sku );
+                    }
                     $new_product->set_category_ids( $category_ids );
                     $new_product->set_status( 'publish' );
                     $product_id = $new_product->save();
@@ -438,6 +439,7 @@ function aurora_bulk_product_form() {
 
                     $success_count++;
                 } catch ( Exception $e ) {
+                    error_log( 'Bulk product error: ' . $e->getMessage() );
                     continue;
                 }
             }
@@ -456,7 +458,7 @@ function aurora_bulk_product_form() {
         <?php if ( $submitted && $success_count > 0 ) : ?>
             <div class="alert alert-success">
                 <?php printf( 
-                    esc_html__( '%d product(s) added successfully! <a href="%s">View All</a>', 'aurora' ), 
+                    esc_html__( '✓ %d product(s) added successfully! <a href="%s">View All Products</a>', 'aurora' ), 
                     $success_count, 
                     esc_url( add_query_arg( 'action', 'list' ) ) 
                 ); ?>
@@ -489,10 +491,10 @@ function aurora_bulk_product_form() {
                         <p><?php esc_html_e( '📷 Upload images above and click them to add details', 'aurora' ); ?></p>
                     </div>
                 </div>
-
-                <!-- Hidden inputs to store form data -->
-                <div id="form-data-container" style="display:none;"></div>
             </div>
+
+            <!-- HIDDEN FORM DATA CONTAINER -->
+            <div id="form-data-container" style="display:none;"></div>
 
             <div class="bulk-form-actions">
                 <button type="submit" class="button button-primary" id="submit-bulk-products-btn"><?php esc_html_e( '✓ Add All Products', 'aurora' ); ?></button>
@@ -503,13 +505,13 @@ function aurora_bulk_product_form() {
 
     <script>
     jQuery(function($) {
-        let productImages = [];
+        let productData = {};
         let selectedImageIndex = -1;
         let categoriesData = <?php echo json_encode( aurora_get_categories_data() ); ?>;
 
         // Handle image selection
         $('#bulk-image-input').on('change', function(e) {
-            productImages = [];
+            productData = {};
             let files = this.files;
 
             // Limit to 10 images
@@ -518,105 +520,185 @@ function aurora_bulk_product_form() {
                 return;
             }
 
+            // Initialize product data for each file
+            for (let i = 0; i < files.length; i++) {
+                productData[i] = {
+                    file: files[i],
+                    name: '',
+                    price: '',
+                    stock: '0',
+                    sku: '',
+                    description: '',
+                    categories: []
+                };
+            }
+
             // Preview images
-            $('#image-preview-container').empty();
+            $('#image-preview-container').html('');
             let previewHTML = '<div class="thumbnails-row">';
 
-            $.each(files, function(index, file) {
+            for (let index = 0; index < files.length; index++) {
+                let file = files[index];
                 if (file.type.startsWith('image/')) {
                     let reader = new FileReader();
                     reader.onload = function(e) {
-                        productImages[index] = {
-                            file: file,
-                            preview: e.target.result,
-                            index: index
-                        };
-
                         // Add thumbnail
                         let thumbHTML = '<div class="thumbnail-item" data-index="' + index + '">' +
                             '<img src="' + e.target.result + '" alt="Product ' + (index + 1) + '" />' +
                             '<span class="thumb-label">Pic ' + (index + 1) + '</span>' +
                             '</div>';
 
-                        $('#image-preview-container .thumbnails-row').append(thumbHTML);
+                        $('#image-preview-container').append(thumbHTML);
                     };
                     reader.readAsDataURL(file);
                 }
-            });
-
-            previewHTML += '</div>';
-            $('#image-preview-container').html(previewHTML);
+            }
 
             // Click handler for thumbnails
-            $(document).on('click', '.thumbnail-item', function() {
-                selectedImageIndex = $(this).data('index');
-                $('.thumbnail-item').removeClass('active');
-                $(this).addClass('active');
-                renderProductForm(selectedImageIndex);
-            });
+            setTimeout(function() {
+                $(document).on('click', '.thumbnail-item', function() {
+                    selectedImageIndex = parseInt($(this).data('index'));
+                    $('.thumbnail-item').removeClass('active');
+                    $(this).addClass('active');
+                    renderProductForm(selectedImageIndex);
+                });
+            }, 100);
+
+            $('#submit-bulk-products-btn').prop('disabled', false);
         });
 
         // Render product details form
         function renderProductForm(index) {
-            if (index < 0 || !productImages[index]) return;
+            if (!productData[index]) return;
 
+            let categoryOptions = '';
+            if (productData[index].categories && productData[index].categories.length) {
+                // Categories already selected - keep them
+                categoryOptions = '<select name="products_categories[' + index + '][]" class="form-control category-select" multiple size="4">' +
+                    categoriesData +
+                    '</select>';
+            } else {
+                categoryOptions = '<select name="products_categories[' + index + '][]" class="form-control category-select" multiple size="4">' +
+                    categoriesData +
+                    '</select>';
+            }
+
+            let currentData = productData[index];
             let formHTML = '<div class="product-form-wrapper">' +
                 '<div class="form-image-display">' +
-                '<img src="' + productImages[index].preview + '" alt="Product ' + (index + 1) + '" />' +
+                '<div style="width: 180px; height: 180px; background: #f5f5f5; border-radius: 8px; display: flex; align-items: center; justify-content: center;">' +
+                '<img id="current-thumb-' + index + '" src="" alt="Product" style="max-width: 100%; max-height: 100%; object-fit: contain;" />' +
+                '</div>' +
                 '</div>' +
                 '<div class="form-inputs">' +
                 '<div class="form-group">' +
                 '<label>Product Name *</label>' +
-                '<input type="text" name="product_names[]" class="form-control product-name-input" required />' +
+                '<input type="text" name="product_names[]" class="form-control product-name-input" value="' + esc_attr(currentData.name) + '" required />' +
                 '</div>' +
 
                 '<div class="form-row">' +
                 '<div class="form-group">' +
                 '<label>Price *</label>' +
-                '<input type="number" name="product_prices[]" class="form-control product-price-input" step="0.01" required />' +
+                '<input type="number" name="product_prices[]" class="form-control product-price-input" step="0.01" value="' + esc_attr(currentData.price) + '" required />' +
                 '</div>' +
                 '<div class="form-group">' +
                 '<label>Stock</label>' +
-                '<input type="number" name="product_stocks[]" class="form-control product-stock-input" value="0" />' +
+                '<input type="number" name="product_stocks[]" class="form-control product-stock-input" value="' + esc_attr(currentData.stock) + '" />' +
                 '</div>' +
                 '<div class="form-group">' +
                 '<label>SKU</label>' +
-                '<input type="text" name="product_skus[]" class="form-control product-sku-input" />' +
+                '<input type="text" name="product_skus[]" class="form-control product-sku-input" value="' + esc_attr(currentData.sku) + '" />' +
                 '</div>' +
                 '</div>' +
 
                 '<div class="form-group">' +
                 '<label>Categories</label>' +
-                '<select name="products_categories[' + index + '][]" class="form-control" multiple size="4">' +
-                categoriesData +
-                '</select>' +
+                categoryOptions +
                 '<small>Hold Ctrl (Cmd on Mac) for multiple</small>' +
                 '</div>' +
 
                 '<div class="form-group">' +
                 '<label>Description</label>' +
-                '<textarea name="product_descs[]" class="form-control product-desc-input" rows="4"></textarea>' +
+                '<textarea name="product_descs[]" class="form-control product-desc-input" rows="4">' + esc_attr(currentData.description) + '</textarea>' +
                 '</div>' +
                 '</div>' +
                 '</div>';
 
             $('#product-details-form').html(formHTML);
+
+            // Display image
+            if (productData[index].file) {
+                let reader = new FileReader();
+                reader.onload = function(e) {
+                    $('#current-thumb-' + index).attr('src', e.target.result);
+                };
+                reader.readAsDataURL(productData[index].file);
+            }
+
+            // Bind input changes to save data
+            $(document).on('input change', '.product-name-input, .product-price-input, .product-stock-input, .product-sku-input, .product-desc-input, .category-select', function() {
+                if (selectedImageIndex >= 0) {
+                    productData[selectedImageIndex].name = $('.product-name-input').val();
+                    productData[selectedImageIndex].price = $('.product-price-input').val();
+                    productData[selectedImageIndex].stock = $('.product-stock-input').val();
+                    productData[selectedImageIndex].sku = $('.product-sku-input').val();
+                    productData[selectedImageIndex].description = $('.product-desc-input').val();
+                    productData[selectedImageIndex].categories = $('.category-select').val();
+
+                    // Auto-generate SKU if empty
+                    if (!productData[selectedImageIndex].sku && productData[selectedImageIndex].name) {
+                        let autoSku = productData[selectedImageIndex].name.toUpperCase().replace(/\s+/g, '-').substring(0, 20);
+                        $('.product-sku-input').val(autoSku);
+                        productData[selectedImageIndex].sku = autoSku;
+                    }
+                }
+            });
         }
 
-        // Auto-generate SKU from name
-        $(document).on('input', '.product-name-input', function() {
-            if (!$('.product-sku-input').val()) {
-                let sku = $(this).val().toUpperCase().replace(/\s+/g, '-').substring(0, 20);
-                $('.product-sku-input').val(sku);
+        // Handle form submission
+        $('#bulk-product-form').on('submit', function(e) {
+            // Clear previous hidden inputs
+            $('#form-data-container').html('');
+
+            // Create hidden inputs from productData
+            let hasValidData = false;
+            for (let index in productData) {
+                let data = productData[index];
+                if (data.name && data.price) {
+                    hasValidData = true;
+                    $('#form-data-container').append(
+                        '<input type="hidden" name="product_names[]" value="' + esc_attr(data.name) + '" />' +
+                        '<input type="hidden" name="product_prices[]" value="' + esc_attr(data.price) + '" />' +
+                        '<input type="hidden" name="product_stocks[]" value="' + esc_attr(data.stock) + '" />' +
+                        '<input type="hidden" name="product_skus[]" value="' + esc_attr(data.sku) + '" />' +
+                        '<input type="hidden" name="product_descs[]" value="' + esc_attr(data.description) + '" />'
+                    );
+
+                    // Add categories
+                    if (data.categories && data.categories.length) {
+                        $.each(data.categories, function(i, catId) {
+                            $('#form-data-container').append(
+                                '<input type="hidden" name="products_categories[' + index + '][]" value="' + esc_attr(catId) + '" />'
+                            );
+                        });
+                    }
+                }
+            }
+
+            if (!hasValidData) {
+                e.preventDefault();
+                alert('<?php esc_attr_e( 'Please add at least one product with Name and Price', 'aurora' ); ?>');
             }
         });
 
-        // Hide submit button if no images selected
+        // Disable submit button initially
         $('#submit-bulk-products-btn').prop('disabled', true);
-        $(document).on('change', '#bulk-image-input', function() {
-            $('#submit-bulk-products-btn').prop('disabled', this.files.length === 0);
-        });
     });
+
+    function esc_attr(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
     </script>
 
     <?php

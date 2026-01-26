@@ -656,7 +656,7 @@ input[type="submit"].button-primary {
     font-size: 20px;
 }
 
-.product-details-section > p {
+.product-details-section>p {
     color: #666;
     font-size: 13px;
     margin: 0 0 20px 0;
