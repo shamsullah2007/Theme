@@ -29,23 +29,44 @@ get_header();
             box-shadow: 0 0 0 3px rgba(0, 115, 170, 0.1);
         }
         .entry-content .button {
+            display: block !important;
+            width: 100% !important;
             cursor: pointer;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            background: #f5f5f5;
-            color: #333;
+            border: 2px solid #0b57d0 !important;
+            border-radius: 8px;
+            background: #0b57d0 !important;
+            color: white !important;
             font-size: 16px;
+            padding: 14px 24px !important;
+            font-weight: 600;
+            transition: all 0.3s ease;
         }
         .entry-content .button:hover {
-            background: #ebebeb;
+            background: #0942a6 !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(11, 87, 208, 0.3) !important;
         }
         .entry-content .button-primary {
-            background: #0073aa;
-            color: white;
-            border-color: #0073aa;
+            background: #0b57d0 !important;
+            color: white !important;
+            border-color: #0b57d0 !important;
         }
         .entry-content .button-primary:hover {
-            background: #005a87;
+            background: #0942a6 !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(11, 87, 208, 0.3) !important;
+        }
+        .entry-content .button-secondary {
+            background: #f0f0f0 !important;
+            color: #333 !important;
+            border-color: #ccc !important;
+        }
+        .entry-content .button-secondary:hover {
+            background: #e0e0e0 !important;
+        }
+        .entry-content .button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
     </style>
     <div class="entry-content" style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
