@@ -635,6 +635,82 @@ function aurora_update_email_ajax() {
     wp_send_json_success( [ 'message' => __( 'Email updated successfully.', 'aurora' ) ] );
 }
 
+// === New Email Change Flow: Request OTP on current email ===
+add_action( 'wp_ajax_aurora_request_email_change_otp', 'aurora_request_email_change_otp_ajax' );
+function aurora_request_email_change_otp_ajax() {
+    aurora_verify_ajax_nonce();
+
+    if ( ! is_user_logged_in() ) {
+        wp_send_json_error( [ 'message' => __( 'Please sign in first.', 'aurora' ) ] );
+    }
+
+    $user      = wp_get_current_user();
+    $new_email = sanitize_email( $_POST['new_email'] ?? '' );
+
+    if ( ! $new_email || ! is_email( $new_email ) ) {
+        wp_send_json_error( [ 'message' => __( 'Please enter a valid email address.', 'aurora' ) ] );
+    }
+
+    if ( email_exists( $new_email ) ) {
+        wp_send_json_error( [ 'message' => __( 'That email is already in use.', 'aurora' ) ] );
+    }
+
+    if ( $new_email === $user->user_email ) {
+        wp_send_json_error( [ 'message' => __( 'The new email must be different from your current email.', 'aurora' ) ] );
+    }
+
+    // Store the pending email change
+    aurora_store_pending_email_change( $user->ID, $new_email );
+
+    // Send OTP to the CURRENT email (existing email)
+    $result = aurora_issue_otp( $user->ID, $user->user_email, 'email_change' );
+
+    if ( $result['success'] ) {
+        wp_send_json_success( $result );
+    }
+
+    wp_send_json_error( $result );
+}
+
+// === New Email Change Flow: Verify OTP and update email ===
+add_action( 'wp_ajax_aurora_verify_email_change', 'aurora_verify_email_change_ajax' );
+function aurora_verify_email_change_ajax() {
+    aurora_verify_ajax_nonce();
+
+    if ( ! is_user_logged_in() ) {
+        wp_send_json_error( [ 'message' => __( 'Please sign in first.', 'aurora' ) ] );
+    }
+
+    $user      = wp_get_current_user();
+    $new_email = sanitize_email( $_POST['new_email'] ?? '' );
+    $otp       = sanitize_text_field( $_POST['otp'] ?? '' );
+    $pending   = aurora_get_pending_email_change( $user->ID );
+
+    if ( ! $pending || empty( $pending['new_email'] ) ) {
+        wp_send_json_error( [ 'message' => __( 'No email change request found or it expired.', 'aurora' ) ] );
+    }
+
+    if ( $new_email !== $pending['new_email'] ) {
+        wp_send_json_error( [ 'message' => __( 'Email mismatch. Please try again.', 'aurora' ) ] );
+    }
+
+    // Verify OTP against the current email
+    $verify = aurora_verify_otp_code( $user->ID, $user->user_email, $otp, 'email_change' );
+    if ( ! $verify['success'] ) {
+        wp_send_json_error( $verify );
+    }
+
+    if ( email_exists( $pending['new_email'] ) ) {
+        wp_send_json_error( [ 'message' => __( 'Email already in use.', 'aurora' ) ] );
+    }
+
+    // Update user email
+    wp_update_user( [ 'ID' => $user->ID, 'user_email' => $pending['new_email'] ] );
+    aurora_clear_pending_email_change( $user->ID );
+
+    wp_send_json_success( [ 'message' => __( 'Email updated successfully.', 'aurora' ) ] );
+}
+
 // === Account: Password change ===
 add_action( 'wp_ajax_aurora_update_password', 'aurora_update_password_ajax' );
 function aurora_update_password_ajax() {

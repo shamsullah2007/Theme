@@ -55,30 +55,24 @@ defined( 'ABSPATH' ) || exit;
                         <input type="email" class="form-input" value="<?php echo esc_attr( wp_get_current_user()->user_email ); ?>" disabled>
                     </div>
 
-                    <div id="email-change-form" style="display: none;">
+                    <button class="button button-primary" id="change-email-btn" style="display: block; margin-top: 15px;"><?php esc_html_e( 'Change Email Address', 'aurora' ); ?></button>
+
+                    <div id="email-change-form" style="display: none; margin-top: 20px;">
                         <div class="setting-item">
                             <label><?php esc_html_e( 'New Email', 'aurora' ); ?></label>
                             <input type="email" id="new-email" class="form-input" placeholder="<?php esc_attr_e( 'Enter new email address', 'aurora' ); ?>">
                         </div>
 
-                        <div class="setting-item">
-                            <label><?php esc_html_e( 'Password (for verification)', 'aurora' ); ?></label>
-                            <input type="password" id="email-verify-password" class="form-input" placeholder="<?php esc_attr_e( 'Enter your password', 'aurora' ); ?>">
-                        </div>
-
-                        <button class="button button-primary" id="send-email-otp"><?php esc_html_e( 'Send OTP', 'aurora' ); ?></button>
-                        <button class="button" id="cancel-email-change"><?php esc_html_e( 'Cancel', 'aurora' ); ?></button>
-
                         <div id="email-otp-section" style="display: none; margin-top: 15px;">
                             <div class="setting-item">
-                                <label><?php esc_html_e( 'Enter OTP (sent to new email)', 'aurora' ); ?></label>
+                                <label><?php esc_html_e( 'Enter OTP (sent to your current email)', 'aurora' ); ?></label>
                                 <input type="text" id="email-otp-code" class="form-input" placeholder="<?php esc_attr_e( '000000', 'aurora' ); ?>" maxlength="6">
                             </div>
-                            <button class="button button-success" id="verify-email-otp"><?php esc_html_e( 'Verify & Update Email', 'aurora' ); ?></button>
                         </div>
-                    </div>
 
-                    <button class="button button-primary" id="change-email-btn" style="display: block;"><?php esc_html_e( 'Change Email Address', 'aurora' ); ?></button>
+                        <button class="button button-primary" id="change-email-submit"><?php esc_html_e( 'Change Email Address', 'aurora' ); ?></button>
+                        <button class="button" id="cancel-email-change"><?php esc_html_e( 'Cancel', 'aurora' ); ?></button>
+                    </div>
                 </div>
 
                 <!-- Password Tab -->
@@ -485,76 +479,104 @@ jQuery(document).ready(function($) {
     });
 
     // Email change
+    let emailChangeStep = 'form'; // 'form' or 'otp'
+
     $('#change-email-btn').on('click', function() {
         $('#email-change-form').show();
+        $('#email-otp-section').hide();
+        $('#new-email').val('');
+        $('#email-otp-code').val('');
+        emailChangeStep = 'form';
         $(this).hide();
     });
 
     $('#cancel-email-change').on('click', function() {
         $('#email-change-form').hide();
         $('#email-otp-section').hide();
+        $('#new-email').val('');
+        $('#email-otp-code').val('');
         $('#change-email-btn').show();
+        emailChangeStep = 'form';
     });
 
-    $('#send-email-otp').on('click', function() {
-        const newEmail = $('#new-email').val();
-        const password = $('#email-verify-password').val();
+    $('#change-email-submit').on('click', function() {
+        if (emailChangeStep === 'form') {
+            // Step 1: User enters new email and clicks Change Email Address
+            const newEmail = $('#new-email').val();
 
-        if (!newEmail || !password) {
-            showMessage('<?php esc_html_e( 'Please fill in all fields', 'aurora' ); ?>', 'error');
-            return;
-        }
-
-        $.ajax({
-            url: '<?php echo admin_url( 'admin-ajax.php' ); ?>',
-            type: 'POST',
-            data: {
-                action: 'aurora_request_otp',
-                nonce: nonce,
-                action_type: 'email_change',
-                email: newEmail,
-                password: password
-            },
-            success: function(response) {
-                if (response.success) {
-                    showMessage(response.data.message, 'success');
-                    $('#email-otp-section').show();
-                    $('#send-email-otp').prop('disabled', true);
-                } else {
-                    showMessage(response.data.message, 'error');
-                }
+            if (!newEmail) {
+                showMessage('<?php esc_html_e( 'Please enter a new email address', 'aurora' ); ?>', 'error');
+                return;
             }
-        });
-    });
 
-    $('#verify-email-otp').on('click', function() {
-        const newEmail = $('#new-email').val();
-        const otpCode = $('#email-otp-code').val();
-
-        if (!otpCode || otpCode.length !== 6) {
-            showMessage('<?php esc_html_e( 'Please enter a valid 6-digit OTP', 'aurora' ); ?>', 'error');
-            return;
-        }
-
-        $.ajax({
-            url: '<?php echo admin_url( 'admin-ajax.php' ); ?>',
-            type: 'POST',
-            data: {
-                action: 'aurora_update_email',
-                nonce: nonce,
-                email: newEmail,
-                otp: otpCode
-            },
-            success: function(response) {
-                if (response.success) {
-                    showMessage(response.data.message, 'success');
-                    setTimeout(() => location.reload(), 2000);
-                } else {
-                    showMessage(response.data.message, 'error');
-                }
+            if (!isValidEmail(newEmail)) {
+                showMessage('<?php esc_html_e( 'Please enter a valid email address', 'aurora' ); ?>', 'error');
+                return;
             }
-        });
+
+            // Request OTP to be sent to existing/current email
+            $.ajax({
+                url: '<?php echo admin_url( 'admin-ajax.php' ); ?>',
+                type: 'POST',
+                data: {
+                    action: 'aurora_request_email_change_otp',
+                    nonce: nonce,
+                    new_email: newEmail
+                },
+                success: function(response) {
+                    if (response.success) {
+                        showMessage(response.data.message, 'success');
+                        $('#email-otp-section').show();
+                        $('#email-otp-code').focus();
+                        emailChangeStep = 'otp';
+                        $('#change-email-submit').text('<?php esc_html_e( 'Change Email Address', 'aurora' ); ?>');
+                    } else {
+                        showMessage(response.data.message, 'error');
+                    }
+                },
+                error: function() {
+                    showMessage('<?php esc_html_e( 'Error requesting OTP', 'aurora' ); ?>', 'error');
+                }
+            });
+        } else if (emailChangeStep === 'otp') {
+            // Step 2: User enters OTP and clicks Change Email Address again
+            const newEmail = $('#new-email').val();
+            const otpCode = $('#email-otp-code').val();
+
+            if (!otpCode || otpCode.length !== 6) {
+                showMessage('<?php esc_html_e( 'Please enter a valid 6-digit OTP', 'aurora' ); ?>', 'error');
+                return;
+            }
+
+            $.ajax({
+                url: '<?php echo admin_url( 'admin-ajax.php' ); ?>',
+                type: 'POST',
+                data: {
+                    action: 'aurora_verify_email_change',
+                    nonce: nonce,
+                    new_email: newEmail,
+                    otp: otpCode
+                },
+                success: function(response) {
+                    if (response.success) {
+                        showMessage(response.data.message, 'success');
+                        setTimeout(() => location.reload(), 2000);
+                    } else {
+                        showMessage(response.data.message, 'error');
+                    }
+                },
+                error: function() {
+                    showMessage('<?php esc_html_e( 'Error verifying OTP', 'aurora' ); ?>', 'error');
+                }
+            });
+        }
     });
+
+    // Helper to validate email
+    function isValidEmail(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    }
 
     // Password change
     $('#send-password-otp').on('click', function() {
