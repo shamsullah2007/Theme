@@ -1,5 +1,9 @@
 (function ($) {
     $(document).ready(function () {
+
+        // Safe no-op fallbacks for tracking scripts if not configured
+        window.rdt = window.rdt || function () { return null; };
+        window.snaptr = window.snaptr || function () { return null; };
         // Simple slider drag for trending section
         $('.product-grid.slider').each(function () {
             const el = $(this)[0];
