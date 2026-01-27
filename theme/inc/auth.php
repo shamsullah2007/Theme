@@ -24,6 +24,92 @@ function aurora_get_otp_settings() {
 }
 
 /**
+ * Direct SMTP email sending (like Python script)
+ */
+function aurora_send_email_direct( $to, $subject, $body_html ) {
+    require_once ABSPATH . WPINC . '/PHPMailer/PHPMailer.php';
+    require_once ABSPATH . WPINC . '/PHPMailer/SMTP.php';
+    require_once ABSPATH . WPINC . '/PHPMailer/Exception.php';
+
+    $mail = new PHPMailer\PHPMailer\PHPMailer( true );
+
+    try {
+        // SMTP Configuration (like Python script)
+        $mail->isSMTP();
+        $mail->Host       = 'smtp.gmail.com';
+        $mail->SMTPAuth   = true;
+        $mail->Username   = 'shamsullahd9999@gmail.com';
+        $mail->Password   = 'zipp fwkq oyeo atnh';
+        $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port       = 587;
+        $mail->CharSet    = 'UTF-8';
+
+        // Sender and recipient
+        $mail->setFrom( 'shamsullahd9999@gmail.com', get_bloginfo( 'name' ) );
+        $mail->addAddress( $to );
+
+        // Email content
+        $mail->isHTML( true );
+        $mail->Subject = $subject;
+        $mail->Body    = $body_html;
+        $mail->AltBody = strip_tags( $body_html );
+
+        // Send email
+        $result = $mail->send();
+        
+        if ( $result ) {
+            error_log( 'Aurora Email Sent Successfully to: ' . $to );
+        }
+        
+        return $result;
+
+    } catch ( Exception $e ) {
+        error_log( 'Aurora Email FAILED to: ' . $to . ' | Error: ' . $mail->ErrorInfo );
+        return false;
+    }
+}
+
+/**
+ * Configure SMTP settings for wp_mail (backup method)
+ */
+add_action( 'phpmailer_init', 'aurora_configure_smtp' );
+function aurora_configure_smtp( $phpmailer ) {
+    $phpmailer->isSMTP();
+    $phpmailer->Host       = 'smtp.gmail.com';
+    $phpmailer->SMTPAuth   = true;
+    $phpmailer->Port       = 587;
+    $phpmailer->Username   = 'shamsullahd9999@gmail.com';
+    $phpmailer->Password   = 'zipp fwkq oyeo atnh';
+    $phpmailer->SMTPSecure = 'tls';
+    $phpmailer->From       = 'shamsullahd9999@gmail.com';
+    $phpmailer->FromName   = get_bloginfo( 'name' );
+    $phpmailer->CharSet    = 'UTF-8';
+}
+
+/**
+ * Reliable email sending with direct SMTP
+ */
+function aurora_send_email( $to, $subject, $body, $headers = [] ) {
+    // Use direct SMTP sending (like Python script)
+    return aurora_send_email_direct( $to, $subject, $body );
+}
+
+/**
+ * Helper to check if string exists in array
+ */
+function in_array_any( $haystack, $needle ) {
+    if ( ! is_array( $haystack ) ) {
+        return false;
+    }
+    foreach ( $haystack as $item ) {
+        if ( strpos( $item, $needle ) !== false ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * Create OTP storage tables.
  */
 add_action( 'after_setup_theme', 'aurora_create_auth_tables' );
@@ -186,17 +272,54 @@ function aurora_issue_otp( $user_id, $email, $action_type ) {
 
     $user_data     = $user_id ? get_userdata( $user_id ) : null;
     $display_name  = ( $user_data && ! empty( $user_data->display_name ) ) ? $user_data->display_name : $email;
-    $action_label  = str_replace( '_', ' ', $action_key );
+    $action_label  = ucwords( str_replace( '_', ' ', $action_key ) );
+    $expires_mins  = (int) ( $settings['expires_in'] / MINUTE_IN_SECONDS );
 
-    $subject = sprintf( __( 'Your %s OTP code', 'aurora' ), $action_label );
-    $body    = sprintf(
-        __( "Hi %s,\n\nYour one-time password is: %s\nIt expires in %d minutes.\n\nIf you did not request this code, you can ignore this email.", 'aurora' ),
-        $display_name,
-        $otp_code,
-        (int) ( $settings['expires_in'] / MINUTE_IN_SECONDS )
-    );
+    $subject = sprintf( __( 'Your %s OTP Code - %s', 'aurora' ), $action_label, get_bloginfo( 'name' ) );
+    
+    // HTML email body with better formatting
+    $body = "
+    <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; color: #333; }
+                .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: #0b57d0; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+                .content { background: #f9fafb; padding: 30px; border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; }
+                .otp-code { font-size: 32px; font-weight: bold; color: #0b57d0; text-align: center; padding: 20px; background: white; border: 2px dashed #0b57d0; border-radius: 8px; margin: 20px 0; letter-spacing: 4px; }
+                .footer { background: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #6b7280; border-radius: 0 0 8px 8px; }
+                .warning { background: #fee2e2; color: #991b1b; padding: 10px; border-left: 4px solid #dc2626; margin: 15px 0; border-radius: 4px; }
+            </style>
+        </head>
+        <body>
+            <div class=\"container\">
+                <div class=\"header\">
+                    <h2>Your One-Time Password</h2>
+                </div>
+                <div class=\"content\">
+                    <p>Hi " . esc_html( $display_name ) . ",</p>
+                    <p>You requested a verification code for " . esc_html( $action_label ) . " on " . esc_html( get_bloginfo( 'name' ) ) . ".</p>
+                    <p>Your one-time password (OTP) is:</p>
+                    <div class=\"otp-code\">" . esc_html( $otp_code ) . "</div>
+                    <p><strong>Expires in: " . esc_html( $expires_mins ) . " minutes</strong></p>
+                    <p>Please enter this code in your browser window to complete your request.</p>
+                    <div class=\"warning\">
+                        <strong>Security Notice:</strong> If you did not request this code, please ignore this email. Do not share this code with anyone.
+                    </div>
+                </div>
+                <div class=\"footer\">
+                    <p>&copy; " . esc_html( get_bloginfo( 'name' ) ) . ". All rights reserved.</p>
+                </div>
+            </div>
+        </body>
+    </html>
+    ";
 
-    wp_mail( $email, $subject, $body );
+    // Set email headers for HTML
+    $headers = array( 'Content-Type: text/html; charset=UTF-8' );
+    
+    // Send email using our SMTP-configured function
+    $mail_sent = aurora_send_email( $email, $subject, $body, $headers );
 
     return [
         'success'       => true,
@@ -333,32 +456,55 @@ function aurora_complete_registration_ajax() {
 
     $token = sanitize_text_field( $_POST['token'] ?? '' );
     $otp   = sanitize_text_field( $_POST['otp'] ?? '' );
+    $email = sanitize_email( $_POST['email'] ?? '' );
 
     if ( ! $token || ! $otp ) {
-        wp_send_json_error( [ 'message' => __( 'Missing registration data.', 'aurora' ) ] );
+        wp_send_json_error( [ 'message' => __( 'Missing registration data. Please start registration again.', 'aurora' ) ] );
     }
 
+    // Retrieve pending registration data
     $pending = aurora_get_pending_registration( $token );
     if ( ! $pending ) {
-        wp_send_json_error( [ 'message' => __( 'Registration session expired. Please restart.', 'aurora' ) ] );
+        wp_send_json_error( [ 'message' => __( 'Registration session expired. Please restart the registration process.', 'aurora' ) ], 400 );
     }
 
+    // Validate email matches to prevent tampering
+    if ( sanitize_email( $email ) !== sanitize_email( $pending['email'] ) ) {
+        wp_send_json_error( [ 'message' => __( 'Email mismatch. Please restart the registration process.', 'aurora' ) ], 400 );
+    }
+
+    // Verify OTP code against the email - MUST verify before creating account
     $verify = aurora_verify_otp_code( 0, $pending['email'], $otp, 'register' );
     if ( ! $verify['success'] ) {
-        wp_send_json_error( $verify );
+        wp_send_json_error( [ 'message' => $verify['message'], 'message' => __( 'Invalid or expired OTP. Please request a new code.', 'aurora' ) ], 400 );
     }
 
+    // Double-check: ensure email doesn't already exist (registration between OTP request and completion)
+    if ( email_exists( $pending['email'] ) ) {
+        wp_send_json_error( [ 'message' => __( 'An account already exists for that email. Please sign in instead.', 'aurora' ) ], 400 );
+    }
+
+    // Generate unique username
     $username = aurora_unique_username_from_email( $pending['email'], $pending['username'] );
 
+    // ONLY NOW create the user account after OTP verification
     $user_id = wp_create_user( $username, $pending['password'], $pending['email'] );
     if ( is_wp_error( $user_id ) ) {
-        wp_send_json_error( [ 'message' => $user_id->get_error_message() ] );
+        wp_send_json_error( [ 'message' => $user_id->get_error_message() ], 500 );
     }
 
-    wp_update_user( [ 'ID' => $user_id, 'first_name' => $pending['first_name'], 'last_name' => $pending['last_name'], 'role' => 'customer' ] );
+    // Set user metadata
+    wp_update_user( [
+        'ID'         => $user_id,
+        'first_name' => $pending['first_name'],
+        'last_name'  => $pending['last_name'],
+        'role'       => 'customer'
+    ] );
 
+    // Clear the pending registration token
     aurora_clear_pending_registration( $token );
 
+    // Log the user in
     wp_set_current_user( $user_id );
     wp_set_auth_cookie( $user_id, true );
 
