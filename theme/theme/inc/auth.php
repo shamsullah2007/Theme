@@ -713,6 +713,104 @@ function aurora_confirm_password_reset_ajax() {
     wp_send_json_success( [ 'message' => __( 'Password reset successfully.', 'aurora' ) ] );
 }
 
+// === OTP Login with Password Reset Flow ===
+add_action( 'wp_ajax_nopriv_aurora_verify_login_otp_only', 'aurora_verify_login_otp_only_ajax' );
+function aurora_verify_login_otp_only_ajax() {
+    aurora_verify_ajax_nonce();
+
+    $email    = sanitize_email( $_POST['email'] ?? '' );
+    $otp_code = sanitize_text_field( $_POST['otp'] ?? '' );
+
+    $user = get_user_by( 'email', $email );
+    if ( ! $user ) {
+        wp_send_json_error( [ 'message' => __( 'Invalid email or OTP.', 'aurora' ) ] );
+    }
+
+    $verify = aurora_verify_otp_code( $user->ID, $email, $otp_code, 'login' );
+    if ( ! $verify['success'] ) {
+        wp_send_json_error( $verify );
+    }
+
+    // Generate a temporary token valid for 10 minutes
+    $temp_token = wp_hash( $user->ID . time() . wp_generate_password() );
+    set_transient( 'aurora_otp_verified_' . $user->ID, $temp_token, 10 * MINUTE_IN_SECONDS );
+
+    wp_send_json_success( [
+        'message'    => __( 'OTP verified successfully.', 'aurora' ),
+        'temp_token' => $temp_token,
+    ] );
+}
+
+add_action( 'wp_ajax_nopriv_aurora_login_with_verified_otp', 'aurora_login_with_verified_otp_ajax' );
+function aurora_login_with_verified_otp_ajax() {
+    aurora_verify_ajax_nonce();
+
+    $email      = sanitize_email( $_POST['email'] ?? '' );
+    $temp_token = sanitize_text_field( $_POST['temp_token'] ?? '' );
+
+    $user = get_user_by( 'email', $email );
+    if ( ! $user ) {
+        wp_send_json_error( [ 'message' => __( 'User not found.', 'aurora' ) ] );
+    }
+
+    // Verify temp token exists and is valid
+    $stored_token = get_transient( 'aurora_otp_verified_' . $user->ID );
+    if ( ! $stored_token || $stored_token !== $temp_token ) {
+        wp_send_json_error( [ 'message' => __( 'Session expired. Please verify OTP again.', 'aurora' ) ] );
+    }
+
+    // Clear the temporary token
+    delete_transient( 'aurora_otp_verified_' . $user->ID );
+
+    // Log the user in
+    wp_set_current_user( $user->ID );
+    wp_set_auth_cookie( $user->ID, true );
+
+    wp_send_json_success( [
+        'message'  => __( 'Logged in successfully.', 'aurora' ),
+        'redirect' => wc_get_page_permalink( 'myaccount' ),
+    ] );
+}
+
+add_action( 'wp_ajax_nopriv_aurora_reset_password_and_login', 'aurora_reset_password_and_login_ajax' );
+function aurora_reset_password_and_login_ajax() {
+    aurora_verify_ajax_nonce();
+
+    $email      = sanitize_email( $_POST['email'] ?? '' );
+    $temp_token = sanitize_text_field( $_POST['temp_token'] ?? '' );
+    $new_password = $_POST['new_password'] ?? '';
+
+    if ( strlen( $new_password ) < 8 ) {
+        wp_send_json_error( [ 'message' => __( 'Password must be at least 8 characters.', 'aurora' ) ] );
+    }
+
+    $user = get_user_by( 'email', $email );
+    if ( ! $user ) {
+        wp_send_json_error( [ 'message' => __( 'User not found.', 'aurora' ) ] );
+    }
+
+    // Verify temp token exists and is valid
+    $stored_token = get_transient( 'aurora_otp_verified_' . $user->ID );
+    if ( ! $stored_token || $stored_token !== $temp_token ) {
+        wp_send_json_error( [ 'message' => __( 'Session expired. Please verify OTP again.', 'aurora' ) ] );
+    }
+
+    // Clear the temporary token
+    delete_transient( 'aurora_otp_verified_' . $user->ID );
+
+    // Reset password
+    wp_set_password( $new_password, $user->ID );
+
+    // Log the user in
+    wp_set_current_user( $user->ID );
+    wp_set_auth_cookie( $user->ID, true );
+
+    wp_send_json_success( [
+        'message'  => __( 'Password reset and logged in successfully.', 'aurora' ),
+        'redirect' => wc_get_page_permalink( 'myaccount' ),
+    ] );
+}
+
 // === Profile image helpers ===
 add_action( 'wp_ajax_aurora_upload_profile_image', 'aurora_upload_profile_image_ajax' );
 function aurora_upload_profile_image_ajax() {

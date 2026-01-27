@@ -265,6 +265,33 @@
                 self.loginWithOTP();
             });
 
+            // Skip password reset and login directly
+            $(document).on('click', '#btn-skip-password-reset', function (e) {
+                e.preventDefault();
+                self.skipPasswordResetAndLogin();
+            });
+
+            // Show password reset form
+            $(document).on('click', '#btn-reset-password-prompt', function (e) {
+                e.preventDefault();
+                $('#password-reset-buttons').hide();
+                $('#password-reset-form').show();
+                $('#reset-new-password').focus();
+            });
+
+            // Hide password reset form
+            $(document).on('click', '#btn-toggle-password-form', function (e) {
+                e.preventDefault();
+                $('#password-reset-form').hide();
+                $('#password-reset-buttons').show();
+            });
+
+            // Reset password and login
+            $(document).on('click', '#btn-reset-password-and-login', function (e) {
+                e.preventDefault();
+                self.resetPasswordAndLogin();
+            });
+
             // Resend OTP timer for login
             $(document).on('click', '#btn-resend-login-otp', function (e) {
                 e.preventDefault();
@@ -362,7 +389,7 @@
             }
 
             const formData = {
-                action: 'aurora_login_with_otp',
+                action: 'aurora_verify_login_otp_only',
                 auth_nonce: self.authNonce,
                 otp: otp,
                 email: email
@@ -381,8 +408,64 @@
                     self.setLoadingState($('#btn-verify-login-otp'), false);
 
                     if (response.success) {
+                        // OTP verified successfully - show password reset option
+                        $('#otp-login-section').hide();
+                        $('#otp-password-reset-section').show();
+
+                        // Store verified email for later use
+                        sessionStorage.setItem('aurora_otp_verified_email', email);
+                        sessionStorage.setItem('aurora_otp_verified_token', response.data.temp_token || '');
+
+                        self.showMessage(messagesContainer, 'Identity verified! You can now set a new password or sign in directly.', 'success');
+                    } else {
+                        self.showMessage(messagesContainer, response.data.message, 'error');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    self.setLoadingState($('#btn-verify-login-otp'), false);
+                    self.showMessage(messagesContainer, 'Verification failed. Please try again.', 'error');
+                }
+            });
+        },
+
+        /**
+         * Skip password reset and login directly
+         */
+        skipPasswordResetAndLogin: function () {
+            const self = this;
+            const messagesContainer = $('#login-messages');
+            const email = sessionStorage.getItem('aurora_otp_verified_email');
+            const tempToken = sessionStorage.getItem('aurora_otp_verified_token');
+
+            if (!email) {
+                self.showMessage(messagesContainer, 'Session expired. Please verify your OTP again.', 'error');
+                return;
+            }
+
+            const formData = {
+                action: 'aurora_login_with_verified_otp',
+                auth_nonce: self.authNonce,
+                email: email,
+                temp_token: tempToken
+            };
+
+            self.setLoadingState($('#btn-skip-password-reset'), true);
+            self.clearMessages(messagesContainer);
+
+            $.ajax({
+                type: 'POST',
+                url: self.ajaxUrl,
+                data: formData,
+                dataType: 'json',
+                timeout: 15000,
+                success: function (response) {
+                    self.setLoadingState($('#btn-skip-password-reset'), false);
+
+                    if (response.success) {
                         self.showMessage(messagesContainer, response.data.message, 'success');
                         sessionStorage.removeItem('aurora_login_email');
+                        sessionStorage.removeItem('aurora_otp_verified_email');
+                        sessionStorage.removeItem('aurora_otp_verified_token');
 
                         // Redirect after delay
                         setTimeout(function () {
@@ -393,8 +476,75 @@
                     }
                 },
                 error: function (xhr, status, error) {
-                    self.setLoadingState($('#btn-verify-login-otp'), false);
+                    self.setLoadingState($('#btn-skip-password-reset'), false);
                     self.showMessage(messagesContainer, 'Login failed. Please try again.', 'error');
+                }
+            });
+        },
+
+        /**
+         * Reset password and login
+         */
+        resetPasswordAndLogin: function () {
+            const self = this;
+            const messagesContainer = $('#login-messages');
+            const email = sessionStorage.getItem('aurora_otp_verified_email');
+            const tempToken = sessionStorage.getItem('aurora_otp_verified_token');
+            const newPassword = $('#reset-new-password').val();
+            const confirmPassword = $('#reset-confirm-password').val();
+
+            if (!email || !tempToken) {
+                self.showMessage(messagesContainer, 'Session expired. Please verify your OTP again.', 'error');
+                return;
+            }
+
+            if (!newPassword || newPassword.length < 8) {
+                self.showMessage(messagesContainer, 'Password must be at least 8 characters', 'error');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                self.showMessage(messagesContainer, 'Passwords do not match', 'error');
+                return;
+            }
+
+            const formData = {
+                action: 'aurora_reset_password_and_login',
+                auth_nonce: self.authNonce,
+                email: email,
+                temp_token: tempToken,
+                new_password: newPassword
+            };
+
+            self.setLoadingState($('#btn-reset-password-and-login'), true);
+            self.clearMessages(messagesContainer);
+
+            $.ajax({
+                type: 'POST',
+                url: self.ajaxUrl,
+                data: formData,
+                dataType: 'json',
+                timeout: 15000,
+                success: function (response) {
+                    self.setLoadingState($('#btn-reset-password-and-login'), false);
+
+                    if (response.success) {
+                        self.showMessage(messagesContainer, response.data.message, 'success');
+                        sessionStorage.removeItem('aurora_login_email');
+                        sessionStorage.removeItem('aurora_otp_verified_email');
+                        sessionStorage.removeItem('aurora_otp_verified_token');
+
+                        // Redirect after delay
+                        setTimeout(function () {
+                            window.location.href = auroraTheme.dashboardUrl || '/my-account/';
+                        }, 1500);
+                    } else {
+                        self.showMessage(messagesContainer, response.data.message, 'error');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    self.setLoadingState($('#btn-reset-password-and-login'), false);
+                    self.showMessage(messagesContainer, 'Password reset failed. Please try again.', 'error');
                 }
             });
         },
