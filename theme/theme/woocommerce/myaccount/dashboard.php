@@ -6,8 +6,32 @@
 defined( 'ABSPATH' ) || exit;
 ?>
 
-<div class="aurora-my-account-dashboard">
-    <div class="my-account-container">
+<style>
+    @media (max-width: 768px) {
+        .aurora-myaccount-wrapper {
+            display: grid;
+            grid-template-columns: 1fr !important;
+            gap: 20px !important;
+        }
+        
+        .aurora-myaccount-content-wrapper {
+            margin-top: 20px;
+        }
+    }
+</style>
+
+<div class="aurora-myaccount-wrapper" style="display: grid; grid-template-columns: 280px 1fr; gap: 40px; align-items: start; max-width: 100%; margin: 0 auto;">
+    <?php
+    // Include custom sidebar
+    $sidebar_file = dirname( __FILE__ ) . '/sidebar-navigation.php';
+    if ( file_exists( $sidebar_file ) ) {
+        include $sidebar_file;
+    }
+    ?>
+
+    <div class="aurora-myaccount-content-wrapper">
+        <div class="aurora-my-account-dashboard">
+            <div class="my-account-container">
         <!-- Profile Section -->
         <div class="profile-section">
             <div class="profile-card">
@@ -717,3 +741,5 @@ jQuery(document).ready(function($) {
     }
 });
 </script>
+        </div><!-- .aurora-myaccount-content-wrapper -->
+    </div><!-- .aurora-myaccount-wrapper -->
