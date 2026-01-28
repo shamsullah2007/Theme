@@ -17,12 +17,29 @@
 
 defined( 'ABSPATH' ) || exit;
 
+// Remove default navigation completely
+remove_action( 'woocommerce_account_navigation', 'woocommerce_account_navigation' );
+
 ?>
 
 <style>
-    /* Hide default WooCommerce navigation */
-    .woocommerce-MyAccount-navigation {
+    /* Aggressively hide all default WooCommerce My Account navigation */
+    .woocommerce-MyAccount-navigation,
+    .woocommerce-MyAccount-navigation-menu,
+    .woocommerce-account .woocommerce-MyAccount-navigation,
+    .woocommerce .woocommerce-MyAccount-navigation,
+    ul.woocommerce-MyAccount-navigation,
+    nav.woocommerce-MyAccount-navigation {
         display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        width: 0 !important;
+        overflow: hidden !important;
+        position: absolute !important;
+        left: -9999px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
     }
 </style>
 

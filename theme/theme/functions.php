@@ -652,3 +652,34 @@ function aurora_myaccount_body_class( $classes ) {
     }
     return $classes;
 }
+
+// Remove default WooCommerce account navigation completely
+add_action( 'wp_enqueue_scripts', 'aurora_hide_woocommerce_account_nav' );
+function aurora_hide_woocommerce_account_nav() {
+    if ( function_exists( 'is_account_page' ) && is_account_page() && is_user_logged_in() ) {
+        // Remove the default navigation hook
+        remove_action( 'woocommerce_account_navigation', 'woocommerce_account_navigation' );
+        
+        // Add CSS to hide any remaining default navigation elements
+        $css = '
+        <style>
+            /* Completely hide default WooCommerce My Account navigation */
+            .woocommerce-MyAccount-navigation,
+            .woocommerce-account .woocommerce-MyAccount-navigation,
+            .woocommerce .woocommerce-MyAccount-navigation,
+            ul.woocommerce-MyAccount-navigation,
+            nav.woocommerce-MyAccount-navigation,
+            .woocommerce-MyAccount-navigation-menu {
+                display: none !important;
+                visibility: hidden !important;
+                height: 0 !important;
+                width: 0 !important;
+                overflow: hidden !important;
+                position: absolute !important;
+                left: -9999px !important;
+            }
+        </style>
+        ';
+        wp_add_inline_style( 'woocommerce-general', $css );
+    }
+}

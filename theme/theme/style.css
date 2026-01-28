@@ -44,3 +44,29 @@ body {
     clip: rect(0, 0, 0, 0);
     border: 0;
 }
+
+/* Hide default WooCommerce My Account navigation */
+.woocommerce-MyAccount-navigation,
+.woocommerce-MyAccount-navigation-menu,
+.woocommerce-account .woocommerce-MyAccount-navigation,
+.woocommerce .woocommerce-MyAccount-navigation,
+ul.woocommerce-MyAccount-navigation,
+nav.woocommerce-MyAccount-navigation,
+.woocommerce-account ul.woocommerce-MyAccount-navigation li {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    left: -9999px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Hide any account navigation that may appear */
+.woocommerce-account nav,
+.account-nav,
+.my-account-nav {
+    display: none !important;
+}
