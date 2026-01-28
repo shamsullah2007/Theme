@@ -10,49 +10,48 @@ defined( 'ABSPATH' ) || exit;
 ?>
 
 <style>
-    .woocommerce-MyAccount-wrapper {
+    .myaccount-page-wrapper {
         display: grid !important;
         grid-template-columns: 280px 1fr !important;
         gap: 40px !important;
         align-items: start !important;
-        max-width: none !important;
-        margin: 0 !important;
+        max-width: 100% !important;
+        margin: 0 auto !important;
         width: 100% !important;
-        padding: 0 !important;
-        background: transparent !important;
     }
 
-    .woocommerce-MyAccount-wrapper > div:not(.aurora-myaccount-sidebar) {
+    .myaccount-content {
         grid-column: 2 !important;
+        width: 100% !important;
     }
 
-    .aurora-myaccount-sidebar {
-        grid-column: 1 !important;
-        grid-row: 1 / -1 !important;
+    /* Override any WooCommerce wrapper styles */
+    .woocommerce-MyAccount-content {
+        display: contents !important;
     }
 
     @media (max-width: 768px) {
-        .woocommerce-MyAccount-wrapper {
+        .myaccount-page-wrapper {
             grid-template-columns: 1fr !important;
             gap: 20px !important;
         }
-
-        .woocommerce-MyAccount-wrapper > div:not(.aurora-myaccount-sidebar) {
+        
+        .myaccount-content {
             grid-column: 1 !important;
         }
     }
 </style>
 
-<div class="woocommerce-MyAccount-wrapper">
+<div class="myaccount-page-wrapper">
     <?php
-    // Include sidebar
+    // Include custom sidebar
     $sidebar_file = dirname( __FILE__ ) . '/sidebar-navigation.php';
     if ( file_exists( $sidebar_file ) ) {
         include $sidebar_file;
     }
     ?>
-    
-    <div style="grid-column: 2;">
+
+    <div class="myaccount-content" style="grid-column: 2;">
 
 <form class="woocommerce-EditAccountForm edit-account" action="" method="post" <?php do_action( 'woocommerce_edit_account_form_tag' ); ?> >
 

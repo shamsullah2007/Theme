@@ -643,44 +643,6 @@ function aurora_ensure_guest_shopping() {
     // WooCommerce guest shopping is enabled by default
     // Ensure no restrictions are in place
 }
-// Custom My Account Sidebar
-add_action( 'woocommerce_account_content', 'aurora_add_myaccount_sidebar', 1 );
-function aurora_add_myaccount_sidebar() {
-    if ( is_page() && is_user_logged_in() ) {
-        // Load custom sidebar
-        $sidebar_file = get_template_directory() . '/woocommerce/myaccount/sidebar-navigation.php';
-        if ( file_exists( $sidebar_file ) ) {
-            echo '<div class="aurora-myaccount-wrapper" style="display: grid; grid-template-columns: 280px 1fr; gap: 30px; align-items: start;">';
-            include $sidebar_file;
-            echo '<div class="aurora-myaccount-content">';
-        }
-    }
-}
-
-add_action( 'woocommerce_account_content', 'aurora_close_myaccount_wrapper', 999 );
-function aurora_close_myaccount_wrapper() {
-    if ( is_page() && is_user_logged_in() ) {
-        $sidebar_file = get_template_directory() . '/woocommerce/myaccount/sidebar-navigation.php';
-        if ( file_exists( $sidebar_file ) ) {
-            echo '</div></div>';
-        }
-    }
-}
-
-// Use custom my-account template
-add_filter( 'wc_get_template', 'aurora_myaccount_template', 10, 5 );
-function aurora_myaccount_template( $template, $template_name, $args, $template_path, $default_path ) {
-    if ( 'myaccount/dashboard.php' === $template_name && is_user_logged_in() ) {
-        // Check if we're on the my-account page
-        if ( is_page() && get_queried_object()->post_name === 'my-account' ) {
-            $custom_template = get_template_directory() . '/template-myaccount.php';
-            if ( file_exists( $custom_template ) ) {
-                return $custom_template;
-            }
-        }
-    }
-    return $template;
-}
 
 // Add body class for my-account pages
 add_filter( 'body_class', 'aurora_myaccount_body_class' );
