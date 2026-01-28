@@ -39,16 +39,7 @@ defined( 'ABSPATH' ) || exit;
     }
 </style>
 
-<div class="myaccount-page-wrapper">
-    <?php
-    // Include custom sidebar
-    $sidebar_file = dirname( __FILE__ ) . '/sidebar-navigation.php';
-    if ( file_exists( $sidebar_file ) ) {
-        include $sidebar_file;
-    }
-    ?>
-
-    <div class="myaccount-content" style="grid-column: 2;">
+<div class="myaccount-content">
         <div class="aurora-my-account-dashboard">
             <div class="my-account-container">
         <!-- Profile Section -->
@@ -198,8 +189,7 @@ defined( 'ABSPATH' ) || exit;
                 </div>
             </div>
         </div>
-    </div>
-</div>
+
 
 <!-- Message Display -->
 <div id="account-message" class="account-message" style="display: none;"></div>

@@ -44,16 +44,7 @@ defined( 'ABSPATH' ) || exit;
     }
 </style>
 
-<div class="myaccount-page-wrapper">
-    <?php
-    // Include custom sidebar
-    $sidebar_file = dirname( __FILE__ ) . '/sidebar-navigation.php';
-    if ( file_exists( $sidebar_file ) ) {
-        include $sidebar_file;
-    }
-    ?>
-
-    <div class="myaccount-content" style="grid-column: 2;">
+<div class="myaccount-content">
 
 <?php
 

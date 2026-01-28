@@ -42,17 +42,6 @@ defined( 'ABSPATH' ) || exit;
     }
 </style>
 
-<div class="myaccount-page-wrapper">
-    <?php
-    // Include custom sidebar
-    $sidebar_file = dirname( __FILE__ ) . '/sidebar-navigation.php';
-    if ( file_exists( $sidebar_file ) ) {
-        include $sidebar_file;
-    }
-    ?>
-
-    <div class="myaccount-content" style="grid-column: 2;">
-
 <form class="woocommerce-EditAccountForm edit-account" action="" method="post" <?php do_action( 'woocommerce_edit_account_form_tag' ); ?> >
 
 	<?php do_action( 'woocommerce_edit_account_form_start' ); ?>
@@ -100,6 +89,3 @@ defined( 'ABSPATH' ) || exit;
 </form>
 
 <?php do_action( 'woocommerce_after_edit_account_form' ); ?>
-
-    </div>
-</div>

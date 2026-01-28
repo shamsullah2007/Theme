@@ -44,17 +44,6 @@ defined( 'ABSPATH' ) || exit;
     }
 </style>
 
-<div class="myaccount-page-wrapper">
-    <?php
-    // Include custom sidebar
-    $sidebar_file = dirname( __FILE__ ) . '/sidebar-navigation.php';
-    if ( file_exists( $sidebar_file ) ) {
-        include $sidebar_file;
-    }
-    ?>
-
-    <div class="myaccount-content" style="grid-column: 2;">
-
 <div class="woocommerce-address-fields">
 
 	<?php if ( ! wc_ship_to_billing_address_only() && get_option( 'woocommerce_calc_taxes' ) !== 'no' ) : ?>
@@ -107,6 +96,3 @@ defined( 'ABSPATH' ) || exit;
 </div>
 
 <?php do_action( 'woocommerce_after_customer_addresses' ); ?>
-
-    </div>
-</div>
