@@ -142,6 +142,9 @@ do_action( 'woocommerce_before_account_orders', $has_orders ); ?>
 
 <?php do_action( 'woocommerce_after_account_orders', $has_orders ); ?>
 
+    </div><!-- .myaccount-content -->
+</div><!-- .myaccount-page-wrapper -->
+
 <style>
 .aurora-cancel-order {
 	background: #dc2626 !important;
@@ -195,6 +198,3 @@ jQuery(document).ready(function($) {
 	});
 });
 </script>
-
-    </div><!-- .myaccount-content -->
-</div><!-- .myaccount-page-wrapper -->

@@ -47,6 +47,8 @@ $menu_items = [
 
 <style>
 .aurora-myaccount-sidebar {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
     background: linear-gradient(135deg, #0b57d0 0%, #0845a8 100%);
     border-radius: 16px;
     padding: 30px 0;

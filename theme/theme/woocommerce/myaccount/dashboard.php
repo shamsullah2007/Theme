@@ -7,20 +7,39 @@ defined( 'ABSPATH' ) || exit;
 ?>
 
 <style>
+    .myaccount-page-wrapper {
+        display: grid !important;
+        grid-template-columns: 280px 1fr !important;
+        gap: 40px !important;
+        align-items: start !important;
+        max-width: 100% !important;
+        margin: 0 auto !important;
+        width: 100% !important;
+    }
+
+    .myaccount-content {
+        grid-column: 2 !important;
+        width: 100% !important;
+    }
+
+    /* Override any WooCommerce wrapper styles */
+    .woocommerce-MyAccount-content {
+        display: contents !important;
+    }
+
     @media (max-width: 768px) {
-        .aurora-myaccount-wrapper {
-            display: grid;
+        .myaccount-page-wrapper {
             grid-template-columns: 1fr !important;
             gap: 20px !important;
         }
         
-        .aurora-myaccount-content-wrapper {
-            margin-top: 20px;
+        .myaccount-content {
+            grid-column: 1 !important;
         }
     }
 </style>
 
-<div class="aurora-myaccount-wrapper" style="display: grid; grid-template-columns: 280px 1fr; gap: 40px; align-items: start; max-width: 100%; margin: 0 auto;">
+<div class="myaccount-page-wrapper">
     <?php
     // Include custom sidebar
     $sidebar_file = dirname( __FILE__ ) . '/sidebar-navigation.php';
@@ -29,7 +48,7 @@ defined( 'ABSPATH' ) || exit;
     }
     ?>
 
-    <div class="aurora-myaccount-content-wrapper">
+    <div class="myaccount-content" style="grid-column: 2;">
         <div class="aurora-my-account-dashboard">
             <div class="my-account-container">
         <!-- Profile Section -->
@@ -741,5 +760,6 @@ jQuery(document).ready(function($) {
     }
 });
 </script>
-        </div><!-- .aurora-myaccount-content-wrapper -->
-    </div><!-- .aurora-myaccount-wrapper -->
+        </div>
+    </div><!-- .myaccount-content -->
+</div><!-- .myaccount-page-wrapper -->
